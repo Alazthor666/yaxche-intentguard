@@ -1,8 +1,8 @@
 """Deterministic clarification baseline used before model reasoning.
 
 The heuristic is intentionally small and testable. It does not claim to solve
-natural-language understanding; it provides an auditable stop condition for
-obvious material ambiguity.
+natural-language understanding; it provides auditable stop conditions for
+obvious material ambiguity and authority uncertainty.
 """
 
 from __future__ import annotations
@@ -25,6 +25,30 @@ _GENERIC_REQUESTS = {
 
 def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip())
+
+
+def _has_send_action(lower: str) -> bool:
+    return re.search(r"\b(send|email)\b", lower) is not None
+
+
+def _has_explicit_recipient(lower: str) -> bool:
+    if "@" in lower:
+        return True
+    if re.search(r"\bsend\b[^.!?]{0,160}\bto\s+\S+", lower):
+        return True
+    if re.search(r"\brecipient\s+(?:is|=)\s+\S+", lower):
+        return True
+    return False
+
+
+def _has_authorization_uncertainty(lower: str) -> bool:
+    patterns = (
+        r"\b(?:whether|if)\b[^.!?]{0,100}\bauthori[sz]",
+        r"\bdo not assume\b[^.!?]{0,120}\bauthori[sz]",
+        r"\bdon't assume\b[^.!?]{0,120}\bauthori[sz]",
+        r"\bwithout assuming\b[^.!?]{0,120}\bauthori[sz]",
+    )
+    return any(re.search(pattern, lower) for pattern in patterns)
 
 
 def compile_intent(request: str) -> IntentIR:
@@ -55,17 +79,43 @@ def compile_intent(request: str) -> IntentIR:
             status="CLARIFY_BEFORE_EXECUTION",
         )
 
-    if lower.startswith("send ") and not any(
-        marker in lower for marker in (" to ", " email ", "@")
-    ):
-        return IntentIR(
-            original_request=text,
-            normalized_goal=text,
-            unknowns=["recipient"],
-            material_ambiguity=True,
-            clarification_question="Who should receive it?",
-            status="CLARIFY_BEFORE_EXECUTION",
-        )
+    constraints: list[str] = []
+    if " without " in lower:
+        constraints.append("contains an explicit 'without' restriction")
+    if " before " in lower:
+        constraints.append("contains an explicit deadline/order constraint")
+    if " must " in lower:
+        constraints.append("contains an explicit mandatory condition")
+    if "do not assume" in lower or "don't assume" in lower:
+        constraints.append("must not infer missing human intent or authorization")
+
+    if _has_send_action(lower):
+        unknowns: list[str] = []
+        if not _has_explicit_recipient(lower):
+            unknowns.append("recipient")
+        if _has_authorization_uncertainty(lower):
+            unknowns.append("execution authorization")
+
+        if unknowns:
+            if unknowns == ["recipient"]:
+                question = "Who should receive it?"
+            elif unknowns == ["execution authorization"]:
+                question = "Are you authorizing me to send it, or only to help prepare it?"
+            else:
+                question = (
+                    "Who should receive it, and are you authorizing me to send it "
+                    "or only to help prepare it?"
+                )
+
+            return IntentIR(
+                original_request=text,
+                normalized_goal=text,
+                constraints=constraints,
+                unknowns=unknowns,
+                material_ambiguity=True,
+                clarification_question=question,
+                status="CLARIFY_BEFORE_EXECUTION",
+            )
 
     if lower.startswith("delete ") and not any(
         marker in lower for marker in (" named ", " id ", " path ", "/", "\\")
@@ -73,6 +123,7 @@ def compile_intent(request: str) -> IntentIR:
         return IntentIR(
             original_request=text,
             normalized_goal=text,
+            constraints=constraints,
             unknowns=["exact deletion target"],
             material_ambiguity=True,
             clarification_question="Which exact item should be deleted?",
@@ -85,19 +136,12 @@ def compile_intent(request: str) -> IntentIR:
         return IntentIR(
             original_request=text,
             normalized_goal=text,
+            constraints=constraints,
             unknowns=["publication destination"],
             material_ambiguity=True,
             clarification_question="Where should this be published?",
             status="CLARIFY_BEFORE_EXECUTION",
         )
-
-    constraints: list[str] = []
-    if " without " in lower:
-        constraints.append("contains an explicit 'without' restriction")
-    if " before " in lower:
-        constraints.append("contains an explicit deadline/order constraint")
-    if " must " in lower:
-        constraints.append("contains an explicit mandatory condition")
 
     return IntentIR(
         original_request=text,
