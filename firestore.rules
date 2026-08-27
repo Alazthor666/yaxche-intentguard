@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /intentguard_public_feedback/{documentId} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'feedback',
+          'sessionId',
+          'pageVersion',
+          'createdAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.feedback is string
+        && request.resource.data.feedback.size() > 0
+        && request.resource.data.feedback.size() <= 500
+        && request.resource.data.sessionId is string
+        && request.resource.data.sessionId.size() > 0
+        && request.resource.data.sessionId.size() <= 80
+        && request.resource.data.pageVersion == 'judge-demo-v1';
+
+      allow read, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
