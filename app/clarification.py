@@ -42,20 +42,22 @@ def _has_explicit_recipient(lower: str) -> bool:
 
 
 def _has_authorization_uncertainty(lower: str) -> bool:
+    auth = r"authori[sz]\w*"
     patterns = (
-        # Direct uncertainty around authorization.
-        r"\b(?:whether|if)\b[^.!?]{0,100}\bauthori[sz]",
-        r"\b(?:may|might|maybe|possibly|unclear|unsure|uncertain)\b[^.!?]{0,120}\bauthori[sz]",
-        # Explicit denial/withholding of execution authority.
-        r"\b(?:not|never)\s+authori[sz](?:e|ed|ing)\b",
-        r"\bdo\s+not\s+authori[sz](?:e|ed|ing)\b",
-        # Permission synonyms and conditional permission.
+        # Direct uncertainty around authorization, including inflections such as
+        # authorize/authorized/authorizing/authorization.
+        rf"\b(?:whether|if)\b[^.!?]{{0,120}}\b{auth}\b",
+        rf"\b(?:may|might|maybe|possibly|unclear|unsure|uncertain)\b[^.!?]{{0,140}}\b{auth}\b",
+        # Explicit denial or withholding of execution authority.
+        rf"\b(?:not|never)\s+{auth}\b",
+        rf"\bdo\s+not\s+{auth}\b",
+        # Permission synonyms and future/conditional approval.
         r"\bif\b[^.!?]{0,120}\b(?:allowed|permitted|approved)\b",
-        r"\b(?:only\s+)?after\b[^.!?]{0,120}\b(?:approve|approves|approved|confirm|confirms|confirmed|authori[sz])",
+        rf"\b(?:only\s+)?after\b[^.!?]{{0,120}}\b(?:approve\w*|confirm\w*|{auth})\b",
         # Existing explicit 'do not assume' forms.
-        r"\bdo not assume\b[^.!?]{0,120}\bauthori[sz]",
-        r"\bdon't assume\b[^.!?]{0,120}\bauthori[sz]",
-        r"\bwithout assuming\b[^.!?]{0,120}\bauthori[sz]",
+        rf"\bdo not assume\b[^.!?]{{0,120}}\b{auth}\b",
+        rf"\bdon't assume\b[^.!?]{{0,120}}\b{auth}\b",
+        rf"\bwithout assuming\b[^.!?]{{0,120}}\b{auth}\b",
     )
     return any(re.search(pattern, lower) for pattern in patterns)
 
@@ -109,10 +111,10 @@ def compile_intent(request: str) -> IntentIR:
             if unknowns == ["recipient"]:
                 question = "Who should receive it?"
             elif unknowns == ["execution authorization"]:
-                question = "Are you authorizing me to send it now, or only to help prepare it?"
+                question = "Are you authorizing me to send it, or only to help prepare it?"
             else:
                 question = (
-                    "Who should receive it, and are you authorizing me to send it now "
+                    "Who should receive it, and are you authorizing me to send it "
                     "or only to help prepare it?"
                 )
 
