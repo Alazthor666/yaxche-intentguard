@@ -21,12 +21,14 @@ Human request
   -> clarification analysis
   -> minimum useful question when required
   -> structured IntentIR
-  -> Gemini 3.5 Flash reasoning
+  -> Gemini 3.7 Flash reasoning
   -> Google ADK orchestration
   -> bounded action / workflow
   -> persistent state + explicit feedback
   -> evidence for the next iteration
 ```
+
+The hackathon requires Gemini 3.5 or newer. This project currently targets `gemini-3.7-flash`, aligning the battle implementation with the current Google Agents CLI examples while remaining above the competition model floor.
 
 ## Architecture
 
@@ -34,11 +36,11 @@ The repository is structured around five separable concerns:
 
 1. **Clarification** — detect material ambiguity before execution.
 2. **IntentIR** — normalize goals, constraints, unknowns and success criteria.
-3. **Agent orchestration** — Google Agent Development Kit (ADK) with Gemini 3.5 Flash.
+3. **Agent orchestration** — Google Agent Development Kit (ADK) with Gemini 3.7 Flash.
 4. **State and feedback** — local deterministic storage for tests, with a Firestore adapter for the Google Cloud deployment path.
 5. **Evidence** — reproducible tests and deployment evidence are kept distinct from claims.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`PREEXISTING_WORK_DISCLOSURE.md`](PREEXISTING_WORK_DISCLOSURE.md).
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/LIVE_VALIDATION.md`](docs/LIVE_VALIDATION.md), and [`PREEXISTING_WORK_DISCLOSURE.md`](PREEXISTING_WORK_DISCLOSURE.md).
 
 ## Evidence boundary
 
@@ -48,6 +50,7 @@ This README distinguishes implementation from execution:
 CODE_PRESENT != CLOUD_DEPLOYED
 TEST_WRITTEN != TEST_EXECUTED
 ADK_IMPORTED != END_TO_END_AGENT_PROVEN
+MODEL_CONFIGURED != LIVE_MODEL_CALL_PROVEN
 FIRESTORE_ADAPTER_PRESENT != FIRESTORE_DEPLOYMENT_PROVEN
 CLOUD_RUN_CONFIG_PRESENT != CLOUD_RUN_DEPLOYMENT_PROVEN
 ```
@@ -86,6 +89,14 @@ Start the ADK development playground after credentials are configured:
 ```bash
 uvx google-agents-cli playground
 ```
+
+Run one live ADK prompt after credentials are configured:
+
+```bash
+uvx google-agents-cli run "I need to send the report. Help me do it."
+```
+
+The expected safe behavior is a focused clarification question rather than pretending the report was already sent. See [`docs/LIVE_VALIDATION.md`](docs/LIVE_VALIDATION.md) for the evidence gate.
 
 ### Option B — venv + pip
 
@@ -134,13 +145,13 @@ Copy `.env.example` to `.env` and configure only what you need.
 - `GOOGLE_CLOUD_PROJECT` — target Google Cloud project for Firestore / deployment.
 - `GOOGLE_CLOUD_LOCATION` — deployment location; default documented by this project is `us-central1`.
 - `INTENTGUARD_STORAGE` — `memory` (default) or `firestore`.
-- `INTENTGUARD_MODEL` — defaults to `gemini-3.5-flash`.
+- `INTENTGUARD_MODEL` — defaults to `gemini-3.7-flash`.
 
 ## Google stack target
 
 The hackathon implementation is being built around:
 
-- Gemini 3.5 Flash (`gemini-3.5-flash`)
+- Gemini 3.7 Flash (`gemini-3.7-flash`; competition floor is Gemini 3.5+)
 - Google Agent Development Kit (ADK)
 - Google Cloud Run
 - Cloud Firestore
@@ -155,6 +166,7 @@ Once Google Cloud credentials and project configuration are ready, the intended 
 
 ```bash
 uvx google-agents-cli cmd-info --json
+uvx google-agents-cli scaffold enhance --deployment-target cloud_run
 uvx google-agents-cli deploy
 ```
 
