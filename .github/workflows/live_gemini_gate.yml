@@ -1,0 +1,55 @@
+name: live-gemini-gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-gemini-adk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      INTENTGUARD_MODEL: gemini-3.7-flash
+      INTENTGUARD_STORAGE: memory
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Require Gemini secret
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY secret is not configured."
+            exit 2
+          fi
+          echo "Gemini credential is present (value intentionally not printed)."
+
+      - name: Install IntentGuard and Agents CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+          pip install google-agents-cli
+
+      - name: Run deterministic gate first
+        run: pytest -q tests/unit
+
+      - name: Run live IntentGuard through Google ADK and Gemini
+        run: |
+          agents-cli run "I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it."
+
+      - name: Record evidence boundary
+        if: always()
+        run: |
+          echo "LIVE_GATE_WORKFLOW=${GITHUB_WORKFLOW}"
+          echo "LIVE_GATE_RUN_ID=${GITHUB_RUN_ID}"
+          echo "LIVE_GATE_COMMIT=${GITHUB_SHA}"
+          echo "MODEL=${INTENTGUARD_MODEL}"
+          echo "No secret values are emitted by this workflow."
