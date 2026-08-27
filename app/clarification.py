@@ -28,7 +28,7 @@ def _normalize(text: str) -> str:
 
 
 def _has_send_action(lower: str) -> bool:
-    return re.search(r"\b(send|email)\b", lower) is not None
+    return re.search(r"\b(send|sending|sent|email|emailing|emailed)\b", lower) is not None
 
 
 def _has_explicit_recipient(lower: str) -> bool:
@@ -43,7 +43,16 @@ def _has_explicit_recipient(lower: str) -> bool:
 
 def _has_authorization_uncertainty(lower: str) -> bool:
     patterns = (
+        # Direct uncertainty around authorization.
         r"\b(?:whether|if)\b[^.!?]{0,100}\bauthori[sz]",
+        r"\b(?:may|might|maybe|possibly|unclear|unsure|uncertain)\b[^.!?]{0,120}\bauthori[sz]",
+        # Explicit denial/withholding of execution authority.
+        r"\b(?:not|never)\s+authori[sz](?:e|ed|ing)\b",
+        r"\bdo\s+not\s+authori[sz](?:e|ed|ing)\b",
+        # Permission synonyms and conditional permission.
+        r"\bif\b[^.!?]{0,120}\b(?:allowed|permitted|approved)\b",
+        r"\b(?:only\s+)?after\b[^.!?]{0,120}\b(?:approve|approves|approved|confirm|confirms|confirmed|authori[sz])",
+        # Existing explicit 'do not assume' forms.
         r"\bdo not assume\b[^.!?]{0,120}\bauthori[sz]",
         r"\bdon't assume\b[^.!?]{0,120}\bauthori[sz]",
         r"\bwithout assuming\b[^.!?]{0,120}\bauthori[sz]",
@@ -82,7 +91,7 @@ def compile_intent(request: str) -> IntentIR:
     constraints: list[str] = []
     if " without " in lower:
         constraints.append("contains an explicit 'without' restriction")
-    if " before " in lower:
+    if " before " in lower or " after " in lower:
         constraints.append("contains an explicit deadline/order constraint")
     if " must " in lower:
         constraints.append("contains an explicit mandatory condition")
@@ -100,10 +109,10 @@ def compile_intent(request: str) -> IntentIR:
             if unknowns == ["recipient"]:
                 question = "Who should receive it?"
             elif unknowns == ["execution authorization"]:
-                question = "Are you authorizing me to send it, or only to help prepare it?"
+                question = "Are you authorizing me to send it now, or only to help prepare it?"
             else:
                 question = (
-                    "Who should receive it, and are you authorizing me to send it "
+                    "Who should receive it, and are you authorizing me to send it now "
                     "or only to help prepare it?"
                 )
 
