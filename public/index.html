@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="YAXCHÉ IntentGuard — collaborative AI that clarifies intent before action." />
+  <title>YAXCHÉ IntentGuard — Judge Demo</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="eyebrow">ALL THINGS AGENTIC • COLLABORATIVE PARTNER</div>
+      <h1>YAXCHÉ <span>IntentGuard</span></h1>
+      <p class="lead">An adaptive AI agent that clarifies material ambiguity before taking action.</p>
+      <div class="stack" aria-label="Technology stack">
+        <span>Gemini 3.7 Flash</span>
+        <span>Google ADK</span>
+        <span>Firestore</span>
+        <span>Firebase Hosting</span>
+      </div>
+    </header>
+
+    <section class="grid two">
+      <article class="card primary">
+        <div class="card-head">
+          <div>
+            <div class="kicker">1 • HUMAN INTENT</div>
+            <h2>Give IntentGuard a real request</h2>
+          </div>
+          <span id="runtimeBadge" class="badge neutral">Initializing</span>
+        </div>
+
+        <label for="requestInput">Request</label>
+        <textarea id="requestInput" rows="7">I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.</textarea>
+
+        <div class="examples">
+          <button class="ghost example" data-example="I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.">Ambiguous send</button>
+          <button class="ghost example" data-example="Draft a concise executive summary of this project for a hackathon judge. Do not send or publish anything.">Clear bounded task</button>
+          <button class="ghost example" data-example="Delete it.">Unsafe delete</button>
+        </div>
+
+        <button id="analyzeBtn" class="cta">Analyze intent</button>
+        <p class="micro">Material ambiguity is checked before model reasoning. A plausible interpretation is not authorization.</p>
+      </article>
+
+      <article class="card">
+        <div class="kicker">2 • INTENT WORKSPACE</div>
+        <h2>IntentIR</h2>
+        <div id="statusPanel" class="status-panel empty">
+          <div class="status-title">Waiting for a request</div>
+          <div class="status-copy">The structured intent representation will appear here.</div>
+        </div>
+        <pre id="intentOutput" class="code">{}</pre>
+      </article>
+    </section>
+
+    <section class="grid two">
+      <article class="card">
+        <div class="kicker">3 • COLLABORATIVE RESPONSE</div>
+        <h2 id="responseTitle">Agent response</h2>
+        <div id="agentResponse" class="response empty">IntentGuard has not processed a request yet.</div>
+      </article>
+
+      <article class="card">
+        <div class="kicker">4 • EVIDENCE SURFACE</div>
+        <h2>What this demo proves</h2>
+        <ul class="evidence-list">
+          <li><strong>Pre-model intent boundary</strong><span id="boundaryEvidence">Ready for browser test</span></li>
+          <li><strong>Gemini 3.7 Flash</strong><span id="geminiEvidence">Waiting for configured Firebase AI Logic</span></li>
+          <li><strong>Google ADK</strong><span>Live repo evidence recorded in GitHub Actions</span></li>
+          <li><strong>Firestore</strong><span>Server write/read/delete gate already passed; judge feedback path prepared</span></li>
+        </ul>
+        <a class="repo-link" href="https://github.com/Alazthor666/yaxche-intentguard" target="_blank" rel="noreferrer">Inspect source & reproducible evidence ↗</a>
+      </article>
+    </section>
+
+    <section class="card feedback-card">
+      <div>
+        <div class="kicker">5 • FEEDBACK LOOP</div>
+        <h2>Help the agent improve</h2>
+        <p>Judges can leave explicit feedback. When Firebase Authentication is enabled, this is written to the protected Firestore feedback collection.</p>
+      </div>
+      <div class="feedback-form">
+        <textarea id="feedbackInput" rows="3" maxlength="500" placeholder="What should IntentGuard do better?"></textarea>
+        <button id="feedbackBtn" class="secondary">Save feedback</button>
+        <div id="feedbackStatus" class="micro"></div>
+      </div>
+    </section>
+
+    <footer>
+      <span>YAXCHÉ IntentGuard • new standalone hackathon implementation</span>
+      <span id="selfTest">Boundary self-test pending</span>
+    </footer>
+  </main>
+
+  <script src="./firebase-config.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
