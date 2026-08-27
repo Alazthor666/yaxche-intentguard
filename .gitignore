@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+.DS_Store
+.vscode/
+.idea/
+# Google Cloud local credentials / keys
+*service-account*.json
+application_default_credentials.json
