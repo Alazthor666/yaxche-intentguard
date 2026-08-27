@@ -25,6 +25,9 @@ jobs:
       - name: Run deterministic unit tests
         run: pytest -q tests/unit
 
+      - name: Validate static judge demo JavaScript syntax
+        run: node --check public/app.js
+
       - name: Import ADK app and judge web surface without live model call
         env:
           INTENTGUARD_MODEL: gemini-3.7-flash
