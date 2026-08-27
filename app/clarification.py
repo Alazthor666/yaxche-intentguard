@@ -28,13 +28,13 @@ def _normalize(text: str) -> str:
 
 
 def _has_send_action(lower: str) -> bool:
-    return re.search(r"\b(send|email)\b", lower) is not None
+    return re.search(r"\b(send|sending|sent|email|emailing|emailed)\b", lower) is not None
 
 
 def _has_explicit_recipient(lower: str) -> bool:
     if "@" in lower:
         return True
-    if re.search(r"\bsend\b[^.!?]{0,160}\bto\s+\S+", lower):
+    if re.search(r"\bsend\b.{0,160}\bto\s+\S+", lower):
         return True
     if re.search(r"\brecipient\s+(?:is|=)\s+\S+", lower):
         return True
@@ -42,11 +42,19 @@ def _has_explicit_recipient(lower: str) -> bool:
 
 
 def _has_authorization_uncertainty(lower: str) -> bool:
+    auth = r"authori[sz]\w*"
+    # Bounded wildcard spans intentionally allow punctuation inside values such
+    # as alice@example.com; punctuation must not erase an authorization signal.
     patterns = (
-        r"\b(?:whether|if)\b[^.!?]{0,100}\bauthori[sz]",
-        r"\bdo not assume\b[^.!?]{0,120}\bauthori[sz]",
-        r"\bdon't assume\b[^.!?]{0,120}\bauthori[sz]",
-        r"\bwithout assuming\b[^.!?]{0,120}\bauthori[sz]",
+        rf"\b(?:whether|if)\b.{{0,180}}\b{auth}\b",
+        rf"\b(?:may|might|maybe|possibly|unclear|unsure|uncertain)\b.{{0,200}}\b{auth}\b",
+        rf"\b(?:not|never)\s+{auth}\b",
+        rf"\bdo\s+not\s+{auth}\b",
+        r"\bif\b.{0,180}\b(?:allowed|permitted|approved)\b",
+        rf"\b(?:only\s+)?after\b.{{0,180}}\b(?:approve\w*|confirm\w*|{auth})\b",
+        rf"\bdo not assume\b.{{0,180}}\b{auth}\b",
+        rf"\bdon't assume\b.{{0,180}}\b{auth}\b",
+        rf"\bwithout assuming\b.{{0,180}}\b{auth}\b",
     )
     return any(re.search(pattern, lower) for pattern in patterns)
 
@@ -82,7 +90,7 @@ def compile_intent(request: str) -> IntentIR:
     constraints: list[str] = []
     if " without " in lower:
         constraints.append("contains an explicit 'without' restriction")
-    if " before " in lower:
+    if " before " in lower or " after " in lower:
         constraints.append("contains an explicit deadline/order constraint")
     if " must " in lower:
         constraints.append("contains an explicit mandatory condition")
