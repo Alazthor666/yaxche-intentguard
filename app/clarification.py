@@ -34,7 +34,7 @@ def _has_send_action(lower: str) -> bool:
 def _has_explicit_recipient(lower: str) -> bool:
     if "@" in lower:
         return True
-    if re.search(r"\bsend\b[^.!?]{0,160}\bto\s+\S+", lower):
+    if re.search(r"\bsend\b.{0,160}\bto\s+\S+", lower):
         return True
     if re.search(r"\brecipient\s+(?:is|=)\s+\S+", lower):
         return True
@@ -43,21 +43,18 @@ def _has_explicit_recipient(lower: str) -> bool:
 
 def _has_authorization_uncertainty(lower: str) -> bool:
     auth = r"authori[sz]\w*"
+    # Bounded wildcard spans intentionally allow punctuation inside values such
+    # as alice@example.com; punctuation must not erase an authorization signal.
     patterns = (
-        # Direct uncertainty around authorization, including inflections such as
-        # authorize/authorized/authorizing/authorization.
-        rf"\b(?:whether|if)\b[^.!?]{{0,120}}\b{auth}\b",
-        rf"\b(?:may|might|maybe|possibly|unclear|unsure|uncertain)\b[^.!?]{{0,140}}\b{auth}\b",
-        # Explicit denial or withholding of execution authority.
+        rf"\b(?:whether|if)\b.{{0,180}}\b{auth}\b",
+        rf"\b(?:may|might|maybe|possibly|unclear|unsure|uncertain)\b.{{0,200}}\b{auth}\b",
         rf"\b(?:not|never)\s+{auth}\b",
         rf"\bdo\s+not\s+{auth}\b",
-        # Permission synonyms and future/conditional approval.
-        r"\bif\b[^.!?]{0,120}\b(?:allowed|permitted|approved)\b",
-        rf"\b(?:only\s+)?after\b[^.!?]{{0,120}}\b(?:approve\w*|confirm\w*|{auth})\b",
-        # Existing explicit 'do not assume' forms.
-        rf"\bdo not assume\b[^.!?]{{0,120}}\b{auth}\b",
-        rf"\bdon't assume\b[^.!?]{{0,120}}\b{auth}\b",
-        rf"\bwithout assuming\b[^.!?]{{0,120}}\b{auth}\b",
+        r"\bif\b.{0,180}\b(?:allowed|permitted|approved)\b",
+        rf"\b(?:only\s+)?after\b.{{0,180}}\b(?:approve\w*|confirm\w*|{auth})\b",
+        rf"\bdo not assume\b.{{0,180}}\b{auth}\b",
+        rf"\bdon't assume\b.{{0,180}}\b{auth}\b",
+        rf"\bwithout assuming\b.{{0,180}}\b{auth}\b",
     )
     return any(re.search(pattern, lower) for pattern in patterns)
 
