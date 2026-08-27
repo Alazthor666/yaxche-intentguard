@@ -1,0 +1,7 @@
+name: yaxche-intentguard
+agent_directory: app
+create_params:
+  deployment_target: cloud_run
+  cicd_runner: github_actions
+  session_type: in_memory
+  region: us-central1
