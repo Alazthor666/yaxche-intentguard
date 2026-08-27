@@ -9,8 +9,8 @@ This file prevents draft-form fields from being confused with evidence-backed im
 | Google ADK used | Live runs exercise the ADK/Agents CLI surface; run `33076307241` passed the pre-model boundary gate | YES |
 | Gemini 3.5+ used | Live run `33045663405` executed with `gemini-3.7-flash` | YES, live model path proven |
 | Collaborative clarification behavior | Live run `33076307241` stopped material ambiguity before model reasoning | YES for the tested case |
+| Firestore used | Human-observed Cloud Shell gate on 2026-08-27 exercised the repository adapter with live write/read/delete | YES |
 | Cloud Run used | `agents-cli-manifest.yaml` targets Cloud Run | NOT YET; deployment evidence required |
-| Firestore used | Firestore adapter and dependency are present | NOT YET; live Firestore evidence required |
 | Hosted project URL | None yet | NO |
 | Architecture diagram | Design artifact exists | YES as architecture design, not deployment proof |
 | Reproducible tests passed | Live boundary run `33076307241` | YES: 15 passed |
@@ -32,7 +32,11 @@ PRE_MODEL_INTENT_BOUNDARY_IMPLEMENTED = true
 PRE_MODEL_INTENT_BOUNDARY_LIVE_PROVEN = true # run 33076307241
 CORE_CLARIFICATION_TESTED_CASE = PASS
 FIRESTORE_ADAPTER_PRESENT = true
-FIRESTORE_LIVE_USE_PROVEN = false
+FIRESTORE_DATABASE_CREATED = true
+FIRESTORE_LIVE_WRITE_PROVEN = true
+FIRESTORE_LIVE_READ_PROVEN = true
+FIRESTORE_LIVE_DELETE_PROVEN = true
+FIRESTORE_LIVE_USE_PROVEN = true
 CLOUD_RUN_TARGET_CONFIGURED = true
 CLOUD_RUN_DEPLOYMENT_PROVEN = false
 HOSTED_URL_AVAILABLE = false
@@ -48,6 +52,7 @@ Evidence:
 - clarification repair CI: [`evidence/CI_RUN_33046202716.md`](evidence/CI_RUN_33046202716.md)
 - model-tool-selection enforcement failure: [`evidence/LIVE_GEMINI_GATE_RUN_33046624824_BEHAVIORAL_ENFORCEMENT_FAILURE.md`](evidence/LIVE_GEMINI_GATE_RUN_33046624824_BEHAVIORAL_ENFORCEMENT_FAILURE.md)
 - successful deterministic pre-model live boundary: [`evidence/LIVE_INTENT_BOUNDARY_RUN_33076307241.md`](evidence/LIVE_INTENT_BOUNDARY_RUN_33076307241.md)
+- live Firestore write/read/delete gate: [`evidence/FIRESTORE_LIVE_GATE_2026-08-27.md`](evidence/FIRESTORE_LIVE_GATE_2026-08-27.md)
 - live validation procedure: [`docs/LIVE_VALIDATION.md`](docs/LIVE_VALIDATION.md)
 
-The live Gemini model path and the deterministic pre-model intent boundary are both proven, by separate runs with separate claims. Firestore and Cloud Run remain unproven until live cloud evidence exists.
+The live Gemini model path, deterministic pre-model intent boundary, and live Firestore persistence path are proven within their stated evidence boundaries. Cloud Run remains unproven until live deployment evidence exists.
