@@ -1,0 +1,26 @@
+{
+  "schema": "tecpatls.descendant_bootstrap_pointer.v1",
+  "local_repository": "Alazthor666/yaxche-intentguard",
+  "local_role": "HACKATHON_WARRIOR_DESCENDANT",
+  "inherits_bootstrap_id": "TEC-PATL-S-ACCESS-BOOTSTRAP-001",
+  "inherits_control_architecture_id": "YAX-REPO-ACCESS-CONTROL-001",
+  "inherits_canonical_name": "TZACUA",
+  "central_repository": "Alazthor666/yaxche-ai-core",
+  "central_control_ref": "feat/tlz0-repository-access-contracts",
+  "must_read_live_central_control": true,
+  "creation_time_provenance": {
+    "control_ref_head": "3f703c04188208581239de3f5a55186ce95e26b4",
+    "bootstrap_blob_sha": "1754583e21064e1f758034d5dd8c18d227737637",
+    "board_blob_sha": "33eda82d1c56b98aa86ef3b836a9a26a949c3706"
+  },
+  "project_truth": {
+    "project_start": "2026-08-26",
+    "new_hackathon_implementation": true,
+    "conceptual_lineage_disclosed": true,
+    "preexisting_code_reuse_requires_exact_disclosure": true,
+    "verified": false,
+    "promoted": false
+  },
+  "authority_effect": "NONE",
+  "promotion_effect": "NONE"
+}
