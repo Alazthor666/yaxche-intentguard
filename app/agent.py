@@ -13,7 +13,10 @@ from .clarification import compile_intent
 from .storage import record_feedback
 
 
-MODEL = os.getenv("INTENTGUARD_MODEL", "gemini-3.5-flash")
+# Current Google Agents CLI examples use Gemini 3.7 Flash. The hackathon requires
+# Gemini 3.5 or newer, so 3.7 satisfies the model floor while keeping the project
+# aligned with the current Google agent toolchain.
+MODEL = os.getenv("INTENTGUARD_MODEL", "gemini-3.7-flash")
 
 
 def compile_human_intent(request: str) -> dict:
