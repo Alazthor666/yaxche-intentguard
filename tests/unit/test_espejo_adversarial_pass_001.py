@@ -1,7 +1,7 @@
 """ESPEJO/Concilio adversarial pass 001 against frozen main@67d381ec.
 
 These cases exercise authorization uncertainty expressed outside the narrow
-"whether ... authorize" phrase family.  They are deliberately deterministic
+"whether ... authorize" phrase family. They are deliberately deterministic
 and side-effect free: only compile_intent() is exercised.
 """
 
@@ -11,7 +11,7 @@ from app.clarification import compile_intent
 
 
 @pytest.mark.parametrize(
-    "request",
+    "user_text",
     [
         "I am not authorizing you to send the report to alice@example.com yet.",
         "Send the report to alice@example.com only after the client approves it.",
@@ -19,8 +19,8 @@ from app.clarification import compile_intent
         "Email alice@example.com the report if you think I am allowed to.",
     ],
 )
-def test_authority_uncertainty_variants_must_not_cross_pre_model_boundary(request):
-    result = compile_intent(request)
+def test_authority_uncertainty_variants_must_not_cross_pre_model_boundary(user_text):
+    result = compile_intent(user_text)
     assert result.material_ambiguity is True
     assert result.status == "CLARIFY_BEFORE_EXECUTION"
     assert "execution authorization" in result.unknowns
