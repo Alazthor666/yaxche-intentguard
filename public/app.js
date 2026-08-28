@@ -41,14 +41,35 @@ function normalize(text) {
   return text.trim().replace(/\s+/g, " ");
 }
 
-function hasSendAction(lower) {
-  return /\b(send|email)\b/.test(lower);
+// This mirrors app/clarification.py. The browser must never claim a boundary
+// the tested Python core does not implement.
+//
+// Design rule for every check: stop only when two readings of the same sentence
+// would lead the agent to act on a different target, recipient, scope, or
+// reversibility. Vague is not the same as materially ambiguous.
+
+const OUTWARD_VERBS = "(?:send|email|message|post|publish|share|transfer|pay|refund|charge|deploy|release)";
+const IRREVERSIBLE_VERBS = "(?:delete|remove|drop|wipe|erase|purge|reset|revoke|overwrite|truncate|cancel|terminate)";
+
+function hasUnnegated(lower, verbGroup) {
+  // "Do not send it" contains `send`, but forbids the action rather than
+  // requesting it. Treating that as a request produces exactly the pointless
+  // question that makes a clarifying agent unusable.
+  const re = new RegExp(`\\b${verbGroup}\\b`, "g");
+  let match;
+  while ((match = re.exec(lower)) !== null) {
+    const window = lower.slice(Math.max(0, match.index - 40), match.index);
+    if (/\b(?:do not|don't|never|without|avoid|refrain from|no)\b[\w\s,]{0,25}$/.test(window)) continue;
+    return true;
+  }
+  return false;
 }
 
 function hasExplicitRecipient(lower) {
   return lower.includes("@")
-    || /\bsend\b[^.!?]{0,160}\bto\s+\S+/.test(lower)
-    || /\brecipient\s+(?:is|=)\s+\S+/.test(lower);
+    || new RegExp(`\\b${OUTWARD_VERBS}\\b[^.!?]{0,160}\\bto\\s+\\S+`).test(lower)
+    || /\brecipient\s+(?:is|=)\s+\S+/.test(lower)
+    || /\bwith\s+(?:the\s+)?(?:team|client|customer|group)\b/.test(lower);
 }
 
 function hasAuthorizationUncertainty(lower) {
@@ -57,8 +78,92 @@ function hasAuthorizationUncertainty(lower) {
     /\bdo not assume\b[^.!?]{0,120}\bauthori[sz]/,
     /\bdon't assume\b[^.!?]{0,120}\bauthori[sz]/,
     /\bwithout assuming\b[^.!?]{0,120}\bauthori[sz]/,
+    /\bnot sure\b[^.!?]{0,80}\b(?:allowed|permitted|approved)/,
   ].some((pattern) => pattern.test(lower));
 }
+
+function hasConcreteTarget(lower) {
+  return /["'`][^"'`]{2,}["'`]/.test(lower)
+    || /[/\\][\w.-]+/.test(lower)
+    || /\b(?:named|called|id|uuid|ticket|issue|pr)\s+\S+/.test(lower);
+}
+
+function detectMoneyStop(lower) {
+  if (!/\b(?:pay|transfer|refund|charge|invoice|wire|reimburse)\b/.test(lower)) return null;
+  const hasAmount = /(?:[$€£¥]\s?\d|\b\d+(?:[.,]\d+)?\s*(?:usd|eur|mxn|dollars|pesos)\b)/.test(lower);
+  const unknowns = [];
+  if (!hasAmount) unknowns.push("amount");
+  if (!hasExplicitRecipient(lower)) unknowns.push("payee");
+  if (!unknowns.length) return null;
+  return {
+    unknowns,
+    question: `Money movement needs both an exact amount and an exact payee. Missing: ${unknowns.join(", ")}.`,
+  };
+}
+
+function detectIrreversibleStop(lower) {
+  if (!new RegExp(`^${IRREVERSIBLE_VERBS}\\b`).test(lower)) return null;
+  if (!hasUnnegated(lower, IRREVERSIBLE_VERBS)) return null;
+  const dangling = new RegExp(`^${IRREVERSIBLE_VERBS}\\s+(?:it|this|that|them|those|these|everything|all)\\b`);
+  if (dangling.test(lower) || !hasConcreteTarget(lower)) {
+    return {
+      unknowns: ["exact target of an irreversible action"],
+      question: "This cannot be undone. Which exact item should I act on?",
+    };
+  }
+  return null;
+}
+
+function detectScopeStop(lower) {
+  if (!/\b(?:all|every|everything|entire|whole)\b/.test(lower)) return null;
+  if (!new RegExp(`\\b${IRREVERSIBLE_VERBS}\\b|\\b${OUTWARD_VERBS}\\b`).test(lower)) return null;
+  if (hasConcreteTarget(lower)) return null;
+  return {
+    unknowns: ["scope of the affected set"],
+    question: "This would affect an unbounded set. Which exact items are in scope?",
+  };
+}
+
+function detectAccessStop(lower) {
+  const grantsAccess = /\b(?:share|grant|give)\b[^.!?]{0,60}\b(?:access|permission|rights)\b/.test(lower);
+  const sharesWith = /\bshare\b[^.!?]{0,80}\bwith\s+\S+/.test(lower);
+  if (!grantsAccess && !sharesWith) return null;
+  if (!hasUnnegated(lower, "(?:share|grant|give)")) return null;
+  if (/\b(?:read[- ]only|view(?:er)?|edit(?:or)?|write|admin|owner|comment)\b/.test(lower)) return null;
+  return {
+    unknowns: ["access level"],
+    question: "What level of access should they get — view, comment, edit, or admin?",
+  };
+}
+
+function detectOutwardStop(lower) {
+  if (!hasUnnegated(lower, OUTWARD_VERBS)) return null;
+  const unknowns = [];
+  if (!hasExplicitRecipient(lower)) unknowns.push("recipient");
+  if (hasAuthorizationUncertainty(lower)) unknowns.push("execution authorization");
+  if (!unknowns.length) return null;
+
+  const verb = /\b(?:send|email|message)\b/.test(lower) ? "send" : "do";
+  let question;
+  if (unknowns.length === 1 && unknowns[0] === "recipient") {
+    question = "Who should receive it?";
+  } else if (unknowns.length === 1 && unknowns[0] === "execution authorization") {
+    question = `Are you authorizing me to ${verb} it, or only to help prepare it?`;
+  } else {
+    question = `Who should receive it, and are you authorizing me to ${verb} it or only to help prepare it?`;
+  }
+  return { unknowns, question };
+}
+
+// Order matters: the most consequential class wins, so the question the user
+// sees is about the thing that could hurt most.
+const DETECTORS = [
+  detectMoneyStop,
+  detectIrreversibleStop,
+  detectScopeStop,
+  detectAccessStop,
+  detectOutwardStop,
+];
 
 function buildIntentIR(text) {
   const request = normalize(text);
@@ -78,10 +183,14 @@ function buildIntentIR(text) {
   const lower = request.toLocaleLowerCase().replace(/[.!?]+$/g, "");
   const generic = new Set([
     "do it", "fix it", "handle it", "handle this", "make it better",
-    "take care of it", "take care of this",
+    "take care of it", "take care of this", "sort it out", "deal with it",
+    "you know what to do",
   ]);
 
-  if (generic.has(lower) || lower.split(/\s+/).length < 3) {
+  // Brevity is not ambiguity. "Delete /etc/hosts" is two words and perfectly
+  // specific; "handle it" is two words and says nothing.
+  const tooShort = lower.split(/\s+/).length < 3 && !hasConcreteTarget(lower);
+  if (generic.has(lower) || tooShort) {
     return {
       original_request: request,
       normalized_goal: request,
@@ -101,55 +210,24 @@ function buildIntentIR(text) {
   if (lower.includes("do not assume") || lower.includes("don't assume")) {
     constraints.push("must not infer missing human intent or authorization");
   }
+  if (/\bdo not (?:send|publish|share|delete)\b/.test(lower)) {
+    constraints.push("explicitly forbids an outward or irreversible action");
+  }
 
-  if (hasSendAction(lower)) {
-    const unknowns = [];
-    if (!hasExplicitRecipient(lower)) unknowns.push("recipient");
-    if (hasAuthorizationUncertainty(lower)) unknowns.push("execution authorization");
-
-    if (unknowns.length) {
-      let clarification = "Who should receive it, and are you authorizing me to send it or only to help prepare it?";
-      if (unknowns.length === 1 && unknowns[0] === "recipient") clarification = "Who should receive it?";
-      if (unknowns.length === 1 && unknowns[0] === "execution authorization") {
-        clarification = "Are you authorizing me to send it, or only to help prepare it?";
-      }
+  for (const detect of DETECTORS) {
+    const stop = detect(lower);
+    if (stop) {
       return {
         original_request: request,
         normalized_goal: request,
         constraints,
-        unknowns,
+        unknowns: stop.unknowns,
         success_criteria: [],
         material_ambiguity: true,
-        clarification_question: clarification,
+        clarification_question: stop.question,
         status: "CLARIFY_BEFORE_EXECUTION",
       };
     }
-  }
-
-  if (lower.startsWith("delete ") && !/( named | id | path |\/|\\)/.test(lower)) {
-    return {
-      original_request: request,
-      normalized_goal: request,
-      constraints,
-      unknowns: ["exact deletion target"],
-      success_criteria: [],
-      material_ambiguity: true,
-      clarification_question: "Which exact item should be deleted?",
-      status: "CLARIFY_BEFORE_EXECUTION",
-    };
-  }
-
-  if (lower.startsWith("publish ") && !/( on | to | at )/.test(lower)) {
-    return {
-      original_request: request,
-      normalized_goal: request,
-      constraints,
-      unknowns: ["publication destination"],
-      success_criteria: [],
-      material_ambiguity: true,
-      clarification_question: "Where should this be published?",
-      status: "CLARIFY_BEFORE_EXECUTION",
-    };
   }
 
   return {
@@ -312,18 +390,40 @@ async function saveFeedback() {
   }
 }
 
+// Mirrors tests/unit/test_clarification.py. Every case runs in the judge's own
+// browser on page load, so the claim is verified in front of them rather than
+// asserted in a README.
+const BOUNDARY_CASES = [
+  // stops
+  ["Do it", "CLARIFY_BEFORE_EXECUTION"],
+  ["Delete it.", "CLARIFY_BEFORE_EXECUTION"],
+  ["I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.", "CLARIFY_BEFORE_EXECUTION"],
+  ["Pay the invoice", "CLARIFY_BEFORE_EXECUTION"],
+  ["Share the roadmap doc with the team", "CLARIFY_BEFORE_EXECUTION"],
+  ["Delete all the old records", "CLARIFY_BEFORE_EXECUTION"],
+  ["Wipe them from the system", "CLARIFY_BEFORE_EXECUTION"],
+  ["Grant access to the repo", "CLARIFY_BEFORE_EXECUTION"],
+  // continues — a clarifying agent that stops on everything is unusable
+  ["Draft a concise executive summary of this project for a hackathon judge. Do not send or publish anything.", "CLEAR_ENOUGH"],
+  ["Transfer 500 USD to alice@example.com", "CLEAR_ENOUGH"],
+  ["Share the roadmap doc with the team as read-only", "CLEAR_ENOUGH"],
+  ["Delete the file named archive.zip", "CLEAR_ENOUGH"],
+  ["Do not delete anything, just list the files", "CLEAR_ENOUGH"],
+  ["Write a haiku about the sea", "CLEAR_ENOUGH"],
+];
+
 function runBoundarySelfTest() {
-  const cases = [
-    ["Do it", "CLARIFY_BEFORE_EXECUTION"],
-    ["I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.", "CLARIFY_BEFORE_EXECUTION"],
-    ["Delete it.", "CLARIFY_BEFORE_EXECUTION"],
-    ["Draft a concise executive summary of this project for a hackathon judge. Do not send or publish anything.", "CLEAR_ENOUGH"],
-  ];
-  const passed = cases.filter(([request, expected]) => buildIntentIR(request).status === expected).length;
-  selfTest.textContent = `Boundary self-test ${passed}/${cases.length}`;
-  boundaryEvidence.textContent = passed === cases.length
-    ? `PASS — ${passed}/${cases.length} browser boundary checks`
-    : `FAIL — ${passed}/${cases.length} browser boundary checks`;
+  const failures = BOUNDARY_CASES.filter(
+    ([request, expected]) => buildIntentIR(request).status !== expected,
+  );
+  const total = BOUNDARY_CASES.length;
+  const passed = total - failures.length;
+  const stops = BOUNDARY_CASES.filter(([, e]) => e === "CLARIFY_BEFORE_EXECUTION").length;
+
+  selfTest.textContent = `Boundary self-test ${passed}/${total}`;
+  boundaryEvidence.textContent = failures.length === 0
+    ? `PASS — ${passed}/${total} live in this browser (${stops} stop, ${total - stops} proceed)`
+    : `FAIL — ${failures.length} of ${total}: ${failures.map(([r]) => r.slice(0, 30)).join(" | ")}`;
 }
 
 document.querySelectorAll(".example").forEach((button) => {

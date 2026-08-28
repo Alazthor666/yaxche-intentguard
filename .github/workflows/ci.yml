@@ -28,6 +28,12 @@ jobs:
       - name: Validate static judge demo JavaScript syntax
         run: node --check public/app.js
 
+      # The judge demo carries its own copy of the boundary so it runs with no
+      # backend. That copy is a liability: if it drifts from the tested Python
+      # core, the demo shows judges a boundary the core does not implement.
+      - name: Browser boundary must match the Python core
+        run: node tests/parity/browser_python_parity.mjs
+
       - name: Import ADK app and judge web surface without live model call
         env:
           INTENTGUARD_MODEL: gemini-3.7-flash
