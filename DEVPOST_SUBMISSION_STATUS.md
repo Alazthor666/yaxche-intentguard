@@ -10,11 +10,11 @@ This file prevents draft-form fields from being confused with evidence-backed im
 | Gemini 3.5+ used | Live run `33045663405` executed with `gemini-3.7-flash` | YES, live model path proven |
 | Collaborative clarification behavior | Live run `33076307241` stopped material ambiguity before model reasoning | YES for the tested case |
 | Firestore used | Human-observed Cloud Shell gate on 2026-08-27 exercised the repository adapter with live write/read/delete | YES |
-| Judge-facing web demo | FastAPI path plus zero-billing Firebase Hosting browser surface are implemented and CI-tested | YES as implemented/deployable, NOT YET publicly hosted |
-| Firebase Hosting used | `firebase.json`, public surface and restrictive Firestore rules are in repo; CI run `33087777218` passed | NOT YET; live hosting deploy required |
-| Firebase AI Logic used | Browser path is implemented for `gemini-3.7-flash` but Firebase Web App/App Check setup is still pending | NOT YET as live demo evidence |
+| Judge-facing web demo | Live at `https://gen-lang-client-0554159756.web.app`; boundary self-test reports 14/14 in the visitor's own browser | YES, publicly hosted |
+| Firebase Hosting used | Deployed 2026-08-28 via the Hosting REST API; release `1787960633912000` serves HTTP 200 | YES, deploy proven |
+| Firebase AI Logic used | Web App registered, App Check reCAPTCHA Enterprise site key wired, runtime reports "Firebase runtime ready" | PARTIAL — see note below |
 | Cloud Run used | Container and target are ready, but project billing is disabled | NO; live deployment blocked by billing |
-| Hosted project URL | None yet | NO |
+| Hosted project URL | `https://gen-lang-client-0554159756.web.app` | YES |
 | Architecture diagram | Design artifact exists | YES as architecture design, not deployment proof |
 | Reproducible tests passed | Zero-billing judge demo CI run `33087777218` | YES |
 
@@ -45,13 +45,42 @@ CLOUD_RUN_BILLING_ENABLED = false
 CLOUD_RUN_DEPLOYMENT_PROVEN = false
 ZERO_BILLING_FIREBASE_HOSTING_SURFACE_IMPLEMENTED = true
 ZERO_BILLING_FIREBASE_HOSTING_SURFACE_CI_PROVEN = true
-FIREBASE_PROJECT_ENABLED = false_or_not_yet_proven
-FIREBASE_WEB_APP_REGISTERED = false_or_not_yet_proven
-FIREBASE_AI_LOGIC_LIVE_DEMO_PROVEN = false
-FIREBASE_HOSTING_DEPLOYMENT_PROVEN = false
-HOSTED_URL_AVAILABLE = false
+FIREBASE_PROJECT_ENABLED = true
+FIREBASE_WEB_APP_REGISTERED = true          # 1:503028669213:web:57b1eb16a702d69fd0dff4
+FIREBASE_HOSTING_DEPLOYMENT_PROVEN = true   # release 1787960633912000, HTTP 200
+HOSTED_URL_AVAILABLE = true                 # gen-lang-client-0554159756.web.app
+APP_CHECK_ENFORCED = true                   # firebaseml.googleapis.com
+APP_CHECK_SITE_KEY_WIRED = true             # reCAPTCHA Enterprise, domain-bound
+BROWSER_BOUNDARY_SELFTEST_LIVE = 14/14      # observed on the deployed page
+FIREBASE_AI_LOGIC_LIVE_DEMO_PROVEN = not_confirmable_from_automation
 VERIFIED = false
 PROMOTED = false
+```
+
+## Note on the one field that stays unproven
+
+App Check is enforced on `firebaseml.googleapis.com` using reCAPTCHA Enterprise
+in SCORE mode. That provider exists to score out automated browsers, so a
+scripted browser cannot obtain an App Check token by design and every Gemini
+call from one returns 401.
+
+The deployed page handles this exactly as intended: it reports
+`Live call attempted but failed — no success claim made` rather than presenting
+an answer it did not receive.
+
+What was verified on the deployed page: the Web App is registered, the site key
+is bound to this exact domain, the App Check exchange endpoint is reachable and
+rejects a forged token with `App attestation failed`, and the runtime reports
+`Firebase runtime ready`.
+
+What remains: one human opening the URL in an ordinary browser and running a
+clear request. That single observation is the only thing separating this row
+from proven, and it cannot be automated without defeating the security control
+it depends on.
+
+```text
+AUTOMATION_BLOCKED != MISCONFIGURED
+NO_TOKEN_FROM_A_BOT = APP_CHECK_WORKING_AS_DESIGNED
 ```
 
 Evidence:
