@@ -7,7 +7,7 @@ Last reconciled: 2026-08-28. This document separates code, observed runs, deploy
 | Code repository | `https://github.com/Alazthor666/yaxche-intentguard` | Yes |
 | Category | Collaborative Partner | Yes |
 | Public judge demo | Firebase Hosting: `https://gen-lang-client-0554159756.web.app` | Yes |
-| Deterministic intent boundary | Local tests and browser/Python parity run in the repository; exact current remote CI result is pending after this rescue merge | Only as `TESTED_REPORTED` until CI completes |
+| Deterministic intent boundary | Local suite: 45 passed; browser/Python parity: 22/22; GitHub CI `33231417270` passed for commit `0090bac` | Yes as `TESTED_REPORTED`; not independently verified |
 | Collaborative feedback adaptation | Browser transforms `IntentPlan v1` to session-local `v2`; `external_actions = NONE` | Yes |
 | Google ADK | Python implementation plus recorded ADK evidence path | Yes, state exact scope |
 | Gemini 3.7 Flash in browser | Human observation was reported on 2026-08-28 in commit `8c4a12b`; no screenshot artifact is stored in this repository | Yes as `HUMAN_OBSERVED_REPORTED`, not independently verified |
@@ -23,8 +23,8 @@ Last reconciled: 2026-08-28. This document separates code, observed runs, deploy
 ## Current rescue gate
 
 ```text
-LOCAL_RESCUE_TESTS = PENDING_FINAL_RERUN
-REMOTE_CI_FOR_MERGED_HEAD = PENDING
+LOCAL_RESCUE_TESTS = 45_PASS + BROWSER_PARITY_22_22 + PLAN_CONTRACT_PASS
+REMOTE_CI_FOR_MERGED_HEAD = SUCCESS  # GitHub Actions run 33231417270, commit 0090bac
 PUBLIC_FIREBASE_DEPLOYMENT_FOR_MERGED_HEAD = PENDING
 HUMAN_BROWSER_GEMINI = HUMAN_OBSERVED_REPORTED_2026-08-28
 HUMAN_BROWSER_SCREENSHOT_ARTIFACT = NOT_IN_REPOSITORY
