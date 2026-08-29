@@ -10,9 +10,50 @@
 
 YAXCHÉ IntentGuard is a new standalone hackathon project that turns ambiguous or messy human requests into structured, reviewable intent before an agent takes action. It is designed to ask the smallest useful clarification question when materially different interpretations would change the action, target, privacy boundary, or expected result.
 
+**Live demo:** https://gen-lang-client-0554159756.web.app — the boundary self-test runs in your own browser on page load.
+
 ## Why
 
 Most AI systems optimize for answering quickly. IntentGuard optimizes for acting on the right intent.
+
+The failure mode that will actually hurt people as agents gain authority is not hallucination. It is confident action on a misread instruction: the right verb aimed at the wrong target, the wrong recipient, or a scope nobody authorized.
+
+## The part that is not a prompt
+
+Almost every attempt to make an agent cautious is written as an instruction — *ask before you act, do not assume the recipient*. An instruction is a request to a probabilistic system. It holds most of the time, which is another way of saying it fails some of the time, and it fails exactly when the request is unusual enough to matter.
+
+IntentGuard's boundary is an ADK `before_model_callback`. The framework runs it before the model is invoked at all, so a materially ambiguous request never reaches Gemini regardless of what the model would have preferred to do with it.
+
+```text
+INSTRUCTION_IS_A_REQUEST
+CALLBACK_IS_A_BOUNDARY
+PROMPT_COMPLIANCE != ENFORCEMENT
+```
+
+It installs on any ADK agent in three lines:
+
+```python
+from google.adk.agents import Agent
+from app.guardrail import install_intent_boundary
+
+agent = Agent(name="my_agent", model=..., instruction=...)
+install_intent_boundary(agent)
+```
+
+`install_intent_boundary` refuses to overwrite a callback that is already there. Silently replacing another team's safety hook would be the same class of mistake this project exists to prevent.
+
+## Measured in both directions
+
+Every safety demo shows a system blocking something. Almost none report how often it blocks work that was fine — which is the number that decides whether anyone leaves it switched on.
+
+```text
+CATCH_RATE      100%   19/19 materially ambiguous requests stopped
+FALSE_STOP_RATE   0%    0/12 clear requests interrupted
+```
+
+Reproduce with `python scripts/run_boundary_benchmark.py`. The corpus is hand-built and small, it is stated as such in the output, and both rates run in CI so neither can drift unnoticed.
+
+Five classes fire, ordered so the most consequential one asks the question: **money** (value moves without an exact amount and payee), **irreversible** (a dangling pronoun is not a target), **scope** (an unbounded quantifier changes blast radius), **access** (naming who, never what they may do), **outward** (anything leaving the agent needs a known recipient).
 
 The intended flow is:
 

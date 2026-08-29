@@ -34,6 +34,11 @@ jobs:
       - name: Browser boundary must match the Python core
         run: node tests/parity/browser_python_parity.mjs
 
+      # Reports both directions. A boundary with a perfect catch rate and a high
+      # false-stop rate is not safe, it is unusable, and it gets switched off.
+      - name: Boundary benchmark — catch rate and false-stop rate
+        run: python scripts/run_boundary_benchmark.py
+
       - name: Import ADK app and judge web surface without live model call
         env:
           INTENTGUARD_MODEL: gemini-3.7-flash
