@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -28,8 +29,19 @@ def test_firestore_rules_are_default_deny_with_feedback_create_only():
     assert "allow read, write: if false" in text
 
 
-def test_firebase_config_contains_no_real_secret_material_yet():
+def test_firebase_config_has_public_identifiers_but_no_server_credentials():
     text = (ROOT / "public" / "firebase-config.js").read_text(encoding="utf-8")
-    assert "__FIREBASE_WEB_API_KEY__" in text
-    assert "__FIREBASE_WEB_APP_ID__" in text
-    assert "__RECAPTCHA_ENTERPRISE_SITE_KEY__" in text
+
+    # Firebase web configuration is intentionally shipped to the browser. The
+    # deployment must use real identifiers, while server credentials must
+    # never be placed in this public file.
+    for field in ("apiKey", "projectId", "appId", "appCheckSiteKey"):
+        assert re.search(rf'{field}:\s*"(?!__)[^"]+"', text), field
+
+    for forbidden in (
+        "BEGIN PRIVATE KEY",
+        "private_key",
+        "service_account",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+    ):
+        assert forbidden not in text
