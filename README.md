@@ -2,11 +2,12 @@
 
 > An adaptive collaborative AI agent that clarifies intent before taking action.
 
-**Hackathon:** All Things Agentic Hackathon 2026  
-**Track:** The Collaborative Partner  
-**Project start:** 2026-08-26  
-**Status:** `IMPLEMENTATION_STARTED_NOT_YET_DEPLOYED`  
-**Verification:** `NOT_YET_EXTERNALLY_VERIFIED`
+**Hackathon:** All Things Agentic Hackathon 2026
+**Track:** The Collaborative Partner
+**Project start:** 2026-08-26
+**Public judge demo:** `DEPLOYED_ON_FIREBASE_HOSTING`
+**Current local rescue candidate:** `REMOTE_CI_PENDING`
+**Verification:** `TESTED_REPORTED != INDEPENDENTLY_VERIFIED`
 
 YAXCHÉ IntentGuard is a new standalone hackathon project that turns ambiguous or messy human requests into structured, reviewable intent before an agent takes action. It is designed to ask the smallest useful clarification question when materially different interpretations would change the action, target, privacy boundary, or expected result.
 
@@ -125,7 +126,8 @@ pytest -q
 The minimum reproducible test gate is:
 
 ```bash
-pytest -q tests/unit
+pytest -q
+node tests/parity/browser_python_parity.mjs
 ```
 
 Expected scope of this gate:
@@ -147,18 +149,17 @@ Copy `.env.example` to `.env` and configure only what you need.
 - `INTENTGUARD_STORAGE` — `memory` (default) or `firestore`.
 - `INTENTGUARD_MODEL` — defaults to `gemini-3.7-flash`.
 
-## Google stack target
+## Google stack: current truth
 
-The hackathon implementation is being built around:
+- **Gemini 3.7 Flash** (`gemini-3.7-flash`) through Firebase AI Logic in the public browser demo; a human browser observation is still required before claiming that this exact judge surface returned a live answer.
+- **Google ADK** in the reproducible Python implementation and its separately recorded evidence path.
+- **Firebase Hosting** for the public judge URL: <https://gen-lang-client-0554159756.web.app>.
+- **Cloud Firestore** for explicitly saved feedback, protected by default-deny rules.
+- **Cloud Run** remains an optional deployment path; it is not currently claimed as deployed.
 
-- Gemini 3.7 Flash (`gemini-3.7-flash`; competition floor is Gemini 3.5+)
-- Google Agent Development Kit (ADK)
-- Google Cloud Run
-- Cloud Firestore
+The browser's local feedback adaptation does not call Gemini, Firestore, or any external action. It changes only a visible `IntentPlan` in the current session. See [`DEVPOST_SUBMISSION_STATUS.md`](DEVPOST_SUBMISSION_STATUS.md).
 
-The repository may contain integration code/configuration for a service before deployment evidence exists. See the evidence boundary above.
-
-## Cloud deployment path
+## Optional Cloud Run deployment path
 
 `agents-cli-manifest.yaml` declares Cloud Run as the deployment target. Deployment is not considered complete until a real Cloud Run service and logs/evidence are captured.
 

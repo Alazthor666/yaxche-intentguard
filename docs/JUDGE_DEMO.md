@@ -1,80 +1,60 @@
 # Judge Demo — YAXCHÉ IntentGuard
 
-## Goal
+## The one-minute story
 
-A judge should understand the differentiator in under one minute:
+IntentGuard treats a plausible interpretation as **not** being authorization to act. It first compiles a request into IntentIR. If a material uncertainty could alter the target, recipient, scope, authorization, or reversibility, it stops and asks one precise question.
 
-> IntentGuard does not treat a plausible model interpretation as permission to act.
+Public URL: <https://gen-lang-client-0554159756.web.app>
 
-The public web surface is designed around one contrast.
+## Demo A — safe brake before the model
 
-## Demo A — material ambiguity
+Click **Ambiguous send**, then **Analyze intent**.
 
-Paste:
+Expected visible result:
 
-```text
-I need to send an important report today. Help me do it.
-```
+- `status = CLARIFY_BEFORE_EXECUTION`;
+- a question about the recipient and/or execution authorization;
+- “ambiguous request stopped before Gemini”; and
+- the browser self-test shows its own result, rather than a README assertion.
+
+Try **Unsafe delete** as a second contrast. “Please delete it” also stops, including polite wording.
+
+## Demo B — bounded collaboration
+
+Click **Clear bounded task**, then **Analyze intent**.
 
 Expected result:
 
-- `phase = clarification`
-- `model_called = false`
-- `material_ambiguity = true`
-- unknown includes `recipient`
-- status is `CLARIFY_BEFORE_EXECUTION`
-- the UI asks the minimum useful clarification question
+- IntentIR reports `CLEAR_ENOUGH`;
+- the agent only receives a bounded assistance request;
+- in an ordinary human browser, Firebase AI Logic may show a Gemini 3.7 Flash response;
+- if the live call fails, the UI says so and does not manufacture a model answer.
 
-This demonstrates that the intent boundary executes before Gemini.
+## Demo C — feedback changes a plan, not the outside world
 
-## Demo B — clear bounded collaboration
-
-Paste:
+After analyzing any request, enter:
 
 ```text
-Summarize this project update into five concise bullets for hackathon judges. Do not publish or send anything.
+Ask one precise question at a time.
 ```
 
-Expected result after Cloud Run is configured with Gemini credentials:
+Click **Apply feedback to plan (local only)**.
 
-- the deterministic boundary passes;
-- Google ADK runs the agent;
-- Gemini 3.7 Flash returns bounded assistance;
-- the UI explicitly reports that the model was called.
-
-## Demo C — explicit feedback persistence
-
-After either run, enter:
+The visible plan moves from v1 to v2 and shows:
 
 ```text
-Prefer one precise clarification question at a time.
+updated_by = EXPLICIT_HUMAN_FEEDBACK
+external_actions = NONE
+persistence = SESSION_LOCAL_ONLY
 ```
 
-and click **Save feedback**.
+This is the Collaborative Partner behavior: explicit feedback changes the next collaboration step without remote control, messages, deletions, deployment, or automatic persistence.
 
-With `INTENTGUARD_STORAGE=firestore`, the server persists feedback through the Firestore adapter. A separate 2026-08-27 live gate already demonstrated real Firestore write, read-back and deletion in the hackathon Google Cloud project.
+**Save feedback separately** is a distinct, explicit Firestore action. It must not be used to claim that the local plan transformation itself wrote data.
 
-## Evidence already established
+## Evidence labels
 
-- deterministic test suite: PASS
-- Google ADK import/construction: PASS
-- live Gemini 3.7 Flash path: PASS
-- live ADK tool call: PASS
-- deterministic pre-model ambiguity boundary: PASS for the registered gate case
-- live Firestore write/read/delete: PASS
-
-Cloud Run deployment and public URL remain separate claims until a service is actually deployed and smoke-tested.
-
-## Public service acceptance gate
-
-A deployed judge URL is accepted only when all of the following pass:
-
-```text
-GET /                 => 200 and contains YAXCHÉ IntentGuard
-GET /healthz          => 200, status=ok
-POST /api/intent      => ambiguous case stops before model
-POST /api/intent      => clear case returns an ADK/Gemini response
-POST /api/feedback    => returns saved=true with store=firestore
-```
-
-Only then may `HOSTED_URL_AVAILABLE=true` and `CLOUD_RUN_DEPLOYMENT_PROVEN=true` be recorded.
+- `TESTED_REPORTED`: a local test or browser self-test produced a result.
+- `HUMAN_PROVEN`: a person observed the protected browser Gemini call and captured evidence.
+- `NOT_DEPLOYED`: a configured path such as Cloud Run has not been deployed.
+- `VERIFIED`: not claimed unless a separate verifier has reviewed the evidence.
