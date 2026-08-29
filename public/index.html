@@ -40,8 +40,12 @@
           <button class="ghost example" data-example="Delete it.">Unsafe delete</button>
         </div>
 
-        <button id="analyzeBtn" class="cta">Analyze intent</button>
+        <div class="actions">
+          <button id="analyzeBtn" class="cta">Analyze intent</button>
+          <button id="tourBtn" class="secondary">▶ Run the 90-second tour</button>
+        </div>
         <p class="micro">Material ambiguity is checked before model reasoning. A plausible interpretation is not authorization.</p>
+        <div id="tourStatus" class="micro tour-status"></div>
       </article>
 
       <article class="card">
@@ -68,34 +72,79 @@
       </article>
 
       <article class="card">
-        <div class="kicker">4 • COLLABORATIVE RESPONSE</div>
-        <h2 id="responseTitle">Agent response</h2>
+        <div class="kicker">4 • MODEL OUTPUT · UNVERIFIED</div>
+        <h2 id="responseTitle">Nothing has been produced yet</h2>
+
+        <!-- A model answering is not the same as a fact being established. These
+             three states stay visible so no reader mistakes fluency for truth. -->
+        <div class="epistemic">
+          <span class="epi" id="epiFact">Fact <b>not established</b></span>
+          <span class="epi" id="epiAuth">Authorization <b>none</b></span>
+          <span class="epi" id="epiIndep">Independent verification <b>no</b></span>
+        </div>
+
         <div id="agentResponse" class="response empty">IntentGuard has not processed a request yet.</div>
       </article>
 
       <article class="card">
-        <div class="kicker">5 • EVIDENCE SURFACE</div>
-        <h2>What this demo proves</h2>
+        <div class="kicker">5 • THE CONTRAST</div>
+        <h2>Same request, two agents</h2>
+        <p class="micro">The interesting claim is not that IntentGuard can act. It is that it knows when it should not yet.</p>
+        <div class="contrast">
+          <div class="lane naive">
+            <div class="lane-head">A typical agent</div>
+            <div id="naiveLane" class="lane-body empty">Waiting for a request.</div>
+          </div>
+          <div class="lane guarded">
+            <div class="lane-head">IntentGuard</div>
+            <div id="guardedLane" class="lane-body empty">Waiting for a request.</div>
+          </div>
+        </div>
+        <div id="decisionTrace" class="trace"></div>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="kicker">6 • EVIDENCE SURFACE</div>
+        <h2>What this run actually established</h2>
         <ul class="evidence-list">
-          <li><strong>Pre-model intent boundary</strong><span id="boundaryEvidence">Ready for browser test</span></li>
-          <li><strong>Gemini 3.7 Flash</strong><span id="geminiEvidence">Waiting for configured Firebase AI Logic</span></li>
-          <li><strong>Google ADK</strong><span>Live repo evidence recorded in GitHub Actions</span></li>
-          <li><strong>Firestore</strong><span>Server write/read/delete gate already passed; judge feedback path prepared</span></li>
+          <li>
+            <strong>Pre-model intent boundary</strong>
+            <span><em id="stBoundary" class="state pending">PENDING</em><span id="boundaryEvidence">Running in your browser…</span></span>
+          </li>
+          <li>
+            <strong>Gemini 3.7 Flash</strong>
+            <span><em id="stGemini" class="state pending">PENDING</em><span id="geminiEvidence">No call attempted in this session yet</span></span>
+          </li>
+          <li>
+            <strong>Google ADK</strong>
+            <span><em class="state supported">SUPPORTED</em><span>Live agent path recorded in GitHub Actions run 33045663405</span></span>
+          </li>
+          <li>
+            <strong>Firestore</strong>
+            <span><em class="state supported">SUPPORTED</em><span>Live write/read/delete observed 2026-08-27; judge feedback path prepared</span></span>
+          </li>
         </ul>
-        <a class="repo-link" href="https://github.com/Alazthor666/yaxche-intentguard" target="_blank" rel="noreferrer">Inspect source & reproducible evidence ↗</a>
+        <p class="micro legend">
+          <b>OBSERVED</b> happened in front of you just now ·
+          <b>SUPPORTED</b> recorded evidence exists elsewhere ·
+          <b>UNVERIFIED</b> produced but not independently checked ·
+          <b>PENDING</b> not attempted yet
+        </p>
+        <a class="repo-link" href="https://github.com/Alazthor666/yaxche-intentguard" target="_blank" rel="noreferrer">Inspect source &amp; reproducible evidence ↗</a>
       </article>
     </section>
 
     <section class="card feedback-card">
       <div>
-        <div class="kicker">6 • FEEDBACK LOOP</div>
+        <div class="kicker">7 • FEEDBACK LOOP</div>
         <h2>Improve the plan with explicit feedback</h2>
         <p>First apply feedback locally to the reviewable plan. Saving is separate and only attempts a protected Firestore write after an explicit second click.</p>
       </div>
       <div class="feedback-form">
         <textarea id="feedbackInput" rows="3" maxlength="500" placeholder="Example: ask one precise question at a time."></textarea>
-        <button id="applyFeedbackBtn" class="ghost">Apply feedback to plan (local only)</button>
-        <button id="feedbackBtn" class="secondary">Save feedback separately</button>
+        <button id="applyFeedbackBtn" class="ghost">Apply feedback to plan (local only)</button>`n        <button id="feedbackBtn" class="secondary">Save feedback separately</button>
         <div id="feedbackStatus" class="micro"></div>
       </div>
     </section>

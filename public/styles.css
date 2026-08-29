@@ -103,3 +103,59 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding: 16px
   .card { padding: 19px; border-radius: 18px; }
   footer { flex-direction: column; }
 }
+
+/* ── Epistemic state, contrast lanes and evidence chips ──────────────────── */
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.tour-status { margin-top: 8px; color: var(--mint); min-height: 1.2em; font-weight: 600; }
+
+/* A model answering is not a fact being established. These stay visible. */
+.epistemic { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 14px; }
+.epi {
+  border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px;
+  font-size: .74rem; letter-spacing: .02em; color: var(--muted);
+  background: rgba(255, 209, 102, .05);
+}
+.epi b { color: var(--amber); font-weight: 700; }
+.epi-ok b { color: var(--mint); }
+
+/* Same request, two agents. The gap between them is the entire product. */
+.contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+@media (max-width: 720px) { .contrast { grid-template-columns: 1fr; } }
+
+.lane { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel-2); }
+.lane-head {
+  padding: 9px 12px; font-size: .72rem; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; border-bottom: 1px solid var(--line);
+}
+.lane.naive .lane-head { color: var(--danger); background: rgba(255, 123, 123, .07); }
+.lane.guarded .lane-head { color: var(--mint); background: rgba(108, 240, 198, .07); }
+.lane-body { padding: 13px; font-size: .9rem; line-height: 1.5; min-height: 92px; }
+.lane-body.empty { color: var(--muted); font-style: italic; }
+.naive-body { color: #ffc9c9; }
+.lane-body.stopped { color: var(--mint); }
+.lane-body.proceeded { color: #cce9df; }
+
+.trace { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-top: 13px; min-height: 1.6em; }
+.trace-rule {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px;
+  color: var(--mint); background: rgba(108, 240, 198, .07);
+}
+.trace-why { color: var(--muted); font-size: .82rem; }
+
+/* Four states, so a reader never has to guess how strong a claim is. */
+.state {
+  display: inline-block; font-style: normal;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: .66rem; font-weight: 800; letter-spacing: .09em;
+  border-radius: 5px; padding: 3px 7px; margin-right: 9px; white-space: nowrap;
+}
+.state.observed  { color: #061512; background: var(--mint-strong); }
+.state.supported { color: var(--mint); background: rgba(108, 240, 198, .13); border: 1px solid var(--line); }
+.state.unverified{ color: var(--amber); background: rgba(255, 209, 102, .12); border: 1px solid rgba(255, 209, 102, .3); }
+.state.pending   { color: var(--muted); background: rgba(157, 184, 175, .1); border: 1px solid var(--line); }
+
+.legend { margin-top: 14px; line-height: 1.8; }
+.legend b { color: var(--mint); font-weight: 700; }

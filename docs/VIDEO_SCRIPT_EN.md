@@ -1,43 +1,43 @@
 # Video script — YAXCHÉ IntentGuard (English, max 4 minutes)
 
-Status: `PREPARED_NOT_RECORDED`. Show only evidence you can see on screen.
+Status: `PREPARED_NOT_RECORDED`. Show only what is visible on screen; use the reported human Gemini observation only if the response is visible during recording.
 
 ## 0:00–0:25 — Problem
 
-“AI assistants often make a plausible guess and then act as if the guess were authorization. YAXCHÉ IntentGuard is a Collaborative Partner designed to stop that mistake before model reasoning.”
+“Many agents make a plausible guess and then act as if the guess were authorization. YAXCHÉ IntentGuard prevents that mistake before model reasoning.”
 
-Show the public URL and the Ambiguous send example.
+Show the public URL and **Ambiguous send**.
 
-## 0:25–1:15 — Safe brake
+## 0:25–1:15 — Safe brake and visible evidence
 
 Click Analyze intent.
 
-“The request is compiled into IntentIR. Recipient and execution authorization are materially ambiguous, so the system pauses and asks one precise question. Gemini is not called for this request.”
+“The request becomes IntentIR. Recipient and execution authorization are materially ambiguous, so IntentGuard stops before Gemini and asks one precise question. The evidence surface labels what happened in this browser and what is only supported elsewhere.”
 
-Show the IntentIR, clarification card, and browser self-test.
+Show IntentIR, the stop, contrast panel, and evidence badges.
 
-## 1:15–2:05 — Bounded assistance
+## 1:15–2:00 — Bounded collaboration
 
-Choose Clear bounded task and Analyze.
+Choose **Clear bounded task** and Analyze.
 
-“Here the deterministic boundary finds a bounded request. Firebase AI Logic prepares Gemini 3.7 Flash. If a live response appears, this is the human-observed proof. If it does not, I show the safe failure exactly as it appears.”
+“When every reading leads to the same safe assistance, the boundary gets out of the way. Firebase AI Logic prepares Gemini 3.7 Flash. I only claim a live answer when it is visible in this browser.”
 
-Show the runtime badge and response panel. Do not claim a response before it is visible.
+Show the runtime badge and response panel; show a safe error as an error, not a success.
 
-## 2:05–3:00 — Feedback changes the plan
+## 2:00–3:00 — Feedback changes a plan, not the world
 
-Enter: “Ask one precise question at a time.” Click Apply feedback to plan (local only).
+Enter: “Ask one precise question at a time.” Click **Apply feedback to plan (local only)**.
 
-“Feedback changes IntentPlan from version one to version two. The plan visibly declares external actions NONE and session-local persistence. This is adaptation without hidden remote execution.”
+“Feedback changes IntentPlan from version one to version two. The plan declares external actions NONE and session-local persistence. It adapts collaboration without sending, deleting, publishing, or saving automatically.”
 
-Show Plan v2 and the separate Save feedback button.
+Show Plan v2 and the separate Firestore save button.
 
-## 3:00–3:40 — Google architecture and evidence
+## 3:00–3:40 — Google stack and reproducibility
 
-“Google ADK provides the Python agent implementation. Firebase Hosting serves this judge demo. Firebase AI Logic exposes Gemini in the browser, and protected Firestore is reserved for explicitly saved feedback. The repository contains reproducible Python tests and a browser-to-Python parity check.”
+“Google ADK supplies the Python agent and reusable pre-model guardrail. Firebase Hosting serves this demo. Firebase AI Logic exposes Gemini, and protected Firestore is reserved for an explicit second click. The repository includes deterministic tests, browser-to-Python parity, and a boundary benchmark measuring both catches and false stops.”
 
-Show the repository, README test commands, and evidence/status document.
+Show the README commands, benchmark artifact, and status file.
 
 ## 3:40–4:00 — Close
 
-“YAXCHÉ IntentGuard turns ambiguity into a reviewable question, then lets people improve the next plan without confusing feedback with permission. Thank you.”
+“YAXCHÉ IntentGuard turns ambiguity into a reviewable question and turns feedback into a safe next plan. It never confuses feedback with permission. Thank you.”

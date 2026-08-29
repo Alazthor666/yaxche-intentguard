@@ -24,14 +24,15 @@ globalThis.document = { getElementById: () => ({}), querySelectorAll: () => [] }
 
 let source = fs.readFileSync(path.join(repoRoot, "public", "app.js"), "utf8");
 source = source.split("async function initializeFirebase")[0];
+// Strip the DOM layer generically. Enumerating element names would mean this
+// harness breaks every time the page grows a new element, which is exactly when
+// a parity check is most worth having.
 source = source
   .replace(/^import .*$/gm, "")
   .replace(/^const config = .*$/gm, "const config = {};")
-  .replace(/^const \w+ = \$\(".*"\);$/gm, "")
   .replace(/^const \$ = .*$/gm, "")
-
-  .replace(/^function setBadge[\s\S]*?^}$/gm, "")
-  .replace(/^function renderIntent[\s\S]*?^}$/gm, "");
+  .replace(/^const \w+ = \$\(.*\);$/gm, "")
+  .replace(/^function (setBadge|renderIntent|setState|setEpistemic)[\s\S]*?^}$/gm, "");
 source += "\nexport { buildIntentIR, buildIntentPlan };\n";
 
 const shimPath = path.join(here, ".boundary-under-test.mjs");

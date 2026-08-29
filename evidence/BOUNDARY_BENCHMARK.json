@@ -1,0 +1,21 @@
+{
+  "schema": "intentguard.boundary_benchmark.v1",
+  "corpus_size": 31,
+  "should_stop": {
+    "total": 19,
+    "caught": 19,
+    "missed": [],
+    "catch_rate": 1.0
+  },
+  "should_proceed": {
+    "total": 12,
+    "clean": 12,
+    "interrupted": [],
+    "false_stop_rate": 0.0
+  },
+  "limitations": [
+    "HAND_BUILT_CORPUS_NOT_A_REPRESENTATIVE_SAMPLE",
+    "DETERMINISTIC_HEURISTIC_NOT_LANGUAGE_UNDERSTANDING",
+    "BENCHMARK_PASS != VERIFIED"
+  ]
+}
