@@ -104,6 +104,11 @@ def test_irreversible_verb_with_dangling_pronoun_stops():
     assert "This cannot be undone" in result.clarification_question
 
 
+def test_polite_irreversible_request_without_target_stops():
+    result = compile_intent("Please delete it")
+    assert result.material_ambiguity is True
+    assert result.unknowns == ["exact target of an irreversible action"]
+
 def test_irreversible_verb_with_named_target_can_continue():
     result = compile_intent("Delete the file named archive.zip")
     assert result.material_ambiguity is False

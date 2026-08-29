@@ -146,8 +146,6 @@ def _detect_outward_stop(lower: str) -> _Stop | None:
 
 def _detect_irreversible_stop(lower: str) -> _Stop | None:
     """Irreversible verbs need an unambiguous target before proceeding."""
-    if not re.match(rf"^{_IRREVERSIBLE_VERBS}\b", lower):
-        return None
     if not _has_unnegated(lower, _IRREVERSIBLE_VERBS):
         return None
     if _DANGLING_PRONOUN_RE.match(lower):

@@ -27,11 +27,9 @@ source = source.split("async function initializeFirebase")[0];
 source = source
   .replace(/^import .*$/gm, "")
   .replace(/^const config = .*$/gm, "const config = {};")
+  .replace(/^const \w+ = \$\(".*"\);$/gm, "")
   .replace(/^const \$ = .*$/gm, "")
-  .replace(
-    /^const (requestInput|analyzeBtn|intentOutput|statusPanel|agentResponse|responseTitle|runtimeBadge|feedbackInput|feedbackBtn|feedbackStatus|selfTest|geminiEvidence|boundaryEvidence) = .*$/gm,
-    "",
-  )
+
   .replace(/^function setBadge[\s\S]*?^}$/gm, "")
   .replace(/^function renderIntent[\s\S]*?^}$/gm, "");
 source += "\nexport { buildIntentIR };\n";
@@ -51,6 +49,7 @@ try {
 const CASES = [
   ["Do it", true],
   ["Delete it.", true],
+  ["Please delete it.", true],
   ["I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.", true],
   ["Pay the invoice", true],
   ["Share the roadmap doc with the team", true],

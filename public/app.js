@@ -102,7 +102,6 @@ function detectMoneyStop(lower) {
 }
 
 function detectIrreversibleStop(lower) {
-  if (!new RegExp(`^${IRREVERSIBLE_VERBS}\\b`).test(lower)) return null;
   if (!hasUnnegated(lower, IRREVERSIBLE_VERBS)) return null;
   const dangling = new RegExp(`^${IRREVERSIBLE_VERBS}\\s+(?:it|this|that|them|those|these|everything|all)\\b`);
   if (dangling.test(lower) || !hasConcreteTarget(lower)) {
@@ -397,6 +396,7 @@ const BOUNDARY_CASES = [
   // stops
   ["Do it", "CLARIFY_BEFORE_EXECUTION"],
   ["Delete it.", "CLARIFY_BEFORE_EXECUTION"],
+  ["Please delete it.", "CLARIFY_BEFORE_EXECUTION"],
   ["I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.", "CLARIFY_BEFORE_EXECUTION"],
   ["Pay the invoice", "CLARIFY_BEFORE_EXECUTION"],
   ["Share the roadmap doc with the team", "CLARIFY_BEFORE_EXECUTION"],
