@@ -12,7 +12,7 @@ This file prevents draft-form fields from being confused with evidence-backed im
 | Firestore used | Human-observed Cloud Shell gate on 2026-08-27 exercised the repository adapter with live write/read/delete | YES |
 | Judge-facing web demo | Live at `https://gen-lang-client-0554159756.web.app`; boundary self-test reports 14/14 in the visitor's own browser | YES, publicly hosted |
 | Firebase Hosting used | Deployed 2026-08-28 via the Hosting REST API; release `1787960633912000` serves HTTP 200 | YES, deploy proven |
-| Firebase AI Logic used | Web App registered, App Check reCAPTCHA Enterprise site key wired, runtime reports "Firebase runtime ready" | PARTIAL — see note below |
+| Firebase AI Logic used | Human-observed on 2026-08-28: an ordinary browser ran a clear request end to end and Gemini 3.7 Flash returned a drafted executive summary | YES, live browser path proven |
 | Cloud Run used | Container and target are ready, but project billing is disabled | NO; live deployment blocked by billing |
 | Hosted project URL | `https://gen-lang-client-0554159756.web.app` | YES |
 | Architecture diagram | Design artifact exists | YES as architecture design, not deployment proof |
@@ -52,36 +52,38 @@ HOSTED_URL_AVAILABLE = true                 # gen-lang-client-0554159756.web.app
 APP_CHECK_ENFORCED = true                   # firebaseml.googleapis.com
 APP_CHECK_SITE_KEY_WIRED = true             # reCAPTCHA Enterprise, domain-bound
 BROWSER_BOUNDARY_SELFTEST_LIVE = 14/14      # observed on the deployed page
-FIREBASE_AI_LOGIC_LIVE_DEMO_PROVEN = not_confirmable_from_automation
+FIREBASE_AI_LOGIC_LIVE_DEMO_PROVEN = true   # human-observed 2026-08-28
 VERIFIED = false
 PROMOTED = false
 ```
 
-## Note on the one field that stays unproven
+## How the live browser path was confirmed
 
 App Check is enforced on `firebaseml.googleapis.com` using reCAPTCHA Enterprise
 in SCORE mode. That provider exists to score out automated browsers, so a
-scripted browser cannot obtain an App Check token by design and every Gemini
-call from one returns 401.
+scripted browser cannot obtain a token by design and every Gemini call from one
+returns 401. This row could never be closed by automation, and automating it
+would have meant defeating the control it depends on.
 
-The deployed page handles this exactly as intended: it reports
-`Live call attempted but failed — no success claim made` rather than presenting
-an answer it did not receive.
+It was closed by observation instead. On 2026-08-28 the deployed URL was opened
+in an ordinary browser and the "Clear bounded task" example produced a real
+Gemini 3.7 Flash response — a drafted executive summary, ending with the model's
+own note that nothing had been sent or published.
 
-What was verified on the deployed page: the Web App is registered, the site key
-is bound to this exact domain, the App Check exchange endpoint is reachable and
-rejects a forged token with `App attestation failed`, and the runtime reports
-`Firebase runtime ready`.
-
-What remains: one human opening the URL in an ordinary browser and running a
-clear request. That single observation is the only thing separating this row
-from proven, and it cannot be automated without defeating the security control
-it depends on.
+One earlier attempt in the same session returned `500 ... stopped before the
+operation could complete`. That is a transient provider error, not the App Check
+401 that automation hits, and the page reported it as a failure rather than
+presenting an answer it had not received.
 
 ```text
 AUTOMATION_BLOCKED != MISCONFIGURED
 NO_TOKEN_FROM_A_BOT = APP_CHECK_WORKING_AS_DESIGNED
+HUMAN_OBSERVATION != INDEPENDENT_VERIFICATION
 ```
+
+The last line matters. One person watching a screen is how this row was closed,
+and that is weaker than a second party reproducing it. The claim is "a live call
+was observed", not "the behaviour is verified".
 
 Evidence:
 
