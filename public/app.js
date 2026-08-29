@@ -21,6 +21,33 @@ const feedbackStatus = $("feedbackStatus");
 const selfTest = $("selfTest");
 const geminiEvidence = $("geminiEvidence");
 const boundaryEvidence = $("boundaryEvidence");
+const tourBtn = $("tourBtn");
+const tourStatus = $("tourStatus");
+const naiveLane = $("naiveLane");
+const guardedLane = $("guardedLane");
+const decisionTrace = $("decisionTrace");
+const epiFact = $("epiFact");
+const epiAuth = $("epiAuth");
+const epiIndep = $("epiIndep");
+const stBoundary = $("stBoundary");
+const stGemini = $("stGemini");
+
+function setState(el, state, label) {
+  if (!el) return;
+  el.className = `state ${state.toLowerCase()}`;
+  el.textContent = label || state;
+}
+
+function setEpistemic({ fact, auth, indep }) {
+  const write = (el, prefix, value, good) => {
+    if (!el) return;
+    el.innerHTML = `${prefix} <b>${escapeHtml(value)}</b>`;
+    el.className = `epi ${good ? "epi-ok" : "epi-warn"}`;
+  };
+  write(epiFact, "Fact", fact, false);
+  write(epiAuth, "Authorization", auth, false);
+  write(epiIndep, "Independent verification", indep, false);
+}
 
 let firebaseApp = null;
 let auth = null;
@@ -158,12 +185,34 @@ function detectOutwardStop(lower) {
 // Order matters: the most consequential class wins, so the question the user
 // sees is about the thing that could hurt most.
 const DETECTORS = [
-  detectMoneyStop,
-  detectIrreversibleStop,
-  detectScopeStop,
-  detectAccessStop,
-  detectOutwardStop,
+  ["money", detectMoneyStop, "value would move with an unknown amount or payee"],
+  ["irreversible", detectIrreversibleStop, "the action cannot be undone and the target is not named"],
+  ["scope", detectScopeStop, "an unbounded quantifier changes how much this touches"],
+  ["access", detectAccessStop, "the recipient is known but not what they may do"],
+  ["outward", detectOutwardStop, "the effect leaves the agent and the recipient is unknown"],
 ];
+
+// What a typical agent would do with the same input: pick the most plausible
+// reading and proceed. Plausible is not the same as authorized, and that gap is
+// the entire product.
+function naiveAgentGuess(lower) {
+  // Respect negation here too. Claiming a typical agent would send when the
+  // user wrote "do not send" would be stacking the contrast in our favour, and
+  // a judge who notices that stops trusting everything else on the page.
+  if (hasUnnegated(lower, "(?:pay|transfer|refund|charge|wire|reimburse)")) {
+    return "Assumes the last invoice and the default account, then moves the money.";
+  }
+  if (new RegExp(`^${IRREVERSIBLE_VERBS}\\b`).test(lower) && hasUnnegated(lower, IRREVERSIBLE_VERBS)) {
+    return "Assumes the most recently mentioned item and deletes it.";
+  }
+  if (hasUnnegated(lower, "(?:share|grant|give)")) {
+    return "Assumes edit access, because that is the common default.";
+  }
+  if (hasUnnegated(lower, OUTWARD_VERBS)) {
+    return "Assumes the last person in the thread and sends it.";
+  }
+  return "Proceeds directly — and here that is the right call.";
+}
 
 function buildIntentIR(text) {
   const request = normalize(text);
@@ -214,7 +263,7 @@ function buildIntentIR(text) {
     constraints.push("explicitly forbids an outward or irreversible action");
   }
 
-  for (const detect of DETECTORS) {
+  for (const [rule, detect, because] of DETECTORS) {
     const stop = detect(lower);
     if (stop) {
       return {
@@ -226,6 +275,8 @@ function buildIntentIR(text) {
         material_ambiguity: true,
         clarification_question: stop.question,
         status: "CLARIFY_BEFORE_EXECUTION",
+        boundary_rule: rule,
+        boundary_reason: because,
       };
     }
   }
@@ -239,6 +290,8 @@ function buildIntentIR(text) {
     material_ambiguity: false,
     clarification_question: null,
     status: "CLEAR_ENOUGH",
+    boundary_rule: null,
+    boundary_reason: "every plausible reading leads to the same safe action",
   };
 }
 
@@ -303,20 +356,45 @@ async function initializeFirebase() {
   }
 }
 
+function renderContrast(request, intent) {
+  const lower = request.toLocaleLowerCase().replace(/[.!?]+$/g, "");
+  naiveLane.className = "lane-body naive-body";
+  naiveLane.textContent = naiveAgentGuess(lower);
+
+  guardedLane.className = `lane-body ${intent.material_ambiguity ? "stopped" : "proceeded"}`;
+  guardedLane.textContent = intent.material_ambiguity
+    ? `Stops and asks: “${intent.clarification_question}”`
+    : "Proceeds — no reading of this changes the outcome.";
+
+  const rule = intent.boundary_rule ? intent.boundary_rule.toUpperCase() : "NONE FIRED";
+  decisionTrace.innerHTML =
+    `<span class="trace-rule">${escapeHtml(rule)}</span>` +
+    `<span class="trace-why">${escapeHtml(intent.boundary_reason || "")}</span>`;
+}
+
 async function runAgent(request, intent) {
+  renderContrast(request, intent);
+
   if (intent.material_ambiguity) {
-    responseTitle.textContent = "Clarification required";
+    responseTitle.textContent = "Stopped before the model ran";
     agentResponse.className = "response blocked";
     agentResponse.textContent = intent.clarification_question;
-    boundaryEvidence.textContent = "PASS — ambiguous request stopped before Gemini";
+    setEpistemic({ fact: "not established", auth: "none", indep: "no" });
+    setState(stBoundary, "OBSERVED");
+    boundaryEvidence.textContent = "Ambiguity stopped this request before Gemini was called";
+    setState(stGemini, "PENDING");
+    geminiEvidence.textContent = "Not called — the boundary held";
     return;
   }
 
-  responseTitle.textContent = "Collaborative response";
+  responseTitle.textContent = "Model output — unverified";
   agentResponse.className = "response ai";
+  setState(stBoundary, "OBSERVED");
+  boundaryEvidence.textContent = "Boundary passed this request; every reading leads to the same action";
 
   if (!firebaseReady || !model) {
     agentResponse.textContent = "The deterministic intent boundary passed. Firebase AI Logic is not configured yet, so this build will not claim a Gemini response.";
+    setState(stGemini, "PENDING");
     return;
   }
 
@@ -336,11 +414,17 @@ async function runAgent(request, intent) {
     const result = await model.generateContent(boundedPrompt);
     const text = result.response.text();
     agentResponse.textContent = text || "Gemini returned no textual response.";
-    geminiEvidence.textContent = "PASS — live Gemini 3.7 Flash response returned in judge demo";
+    // The model answered. That establishes that a call happened, and nothing
+    // about whether what it said is true.
+    setState(stGemini, "UNVERIFIED");
+    geminiEvidence.textContent = "Live Gemini 3.7 Flash response returned just now, in this browser";
+    setEpistemic({ fact: "not established", auth: "none", indep: "no" });
   } catch (error) {
     console.error(error);
     agentResponse.textContent = `Gemini call failed safely: ${error?.message || "unknown error"}`;
-    geminiEvidence.textContent = "Live call attempted but failed — no success claim made";
+    setState(stGemini, "PENDING");
+    geminiEvidence.textContent = "Live call attempted and failed — no success claim made";
+    setEpistemic({ fact: "not established", auth: "none", indep: "no" });
   }
 }
 
@@ -433,7 +517,46 @@ document.querySelectorAll(".example").forEach((button) => {
   });
 });
 
+// A judge has minutes, not patience for typing. The tour walks the three cases
+// that matter, in the order that makes the point: it stops when it should, it
+// stops for a different reason when the danger is different, and — the part
+// most safety demos never show — it gets out of the way when nothing is at risk.
+const TOUR = [
+  {
+    label: "1/3 · Ambiguous — it asks instead of guessing",
+    request: "I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.",
+  },
+  {
+    label: "2/3 · Irreversible — a pronoun is not a target",
+    request: "Delete all the old records",
+  },
+  {
+    label: "3/3 · Clear — it gets out of the way",
+    request: "Draft a concise executive summary of this project for a hackathon judge. Do not send or publish anything.",
+  },
+];
+
+async function runTour() {
+  tourBtn.disabled = true;
+  analyzeBtn.disabled = true;
+  try {
+    for (const step of TOUR) {
+      tourStatus.textContent = step.label;
+      requestInput.value = step.request;
+      const intent = buildIntentIR(normalize(step.request));
+      renderIntent(intent);
+      await runAgent(normalize(step.request), intent);
+      await new Promise((resolve) => setTimeout(resolve, 2600));
+    }
+    tourStatus.textContent = "Tour complete. Two stops, one clean pass — try your own request above.";
+  } finally {
+    tourBtn.disabled = false;
+    analyzeBtn.disabled = false;
+  }
+}
+
 analyzeBtn.addEventListener("click", analyze);
+tourBtn.addEventListener("click", runTour);
 feedbackBtn.addEventListener("click", saveFeedback);
 
 runBoundarySelfTest();
