@@ -56,14 +56,25 @@
     </section>
 
     <section class="grid two">
+      <article class="card plan-card">
+        <div class="kicker">3 • SESSION-LOCAL ADAPTATION</div>
+        <h2>Feedback changes the plan — not the world</h2>
+        <p class="micro">IntentGuard can adapt its visible collaboration plan from your feedback. This step never sends, deletes, publishes, or writes outside this browser session.</p>
+        <div id="planStatus" class="status-panel empty">
+          <div class="status-title">Waiting for an analyzed request</div>
+          <div class="status-copy">Analyze a request to create a reviewable plan.</div>
+        </div>
+        <pre id="planOutput" class="code plan-code">{}</pre>
+      </article>
+
       <article class="card">
-        <div class="kicker">3 • COLLABORATIVE RESPONSE</div>
+        <div class="kicker">4 • COLLABORATIVE RESPONSE</div>
         <h2 id="responseTitle">Agent response</h2>
         <div id="agentResponse" class="response empty">IntentGuard has not processed a request yet.</div>
       </article>
 
       <article class="card">
-        <div class="kicker">4 • EVIDENCE SURFACE</div>
+        <div class="kicker">5 • EVIDENCE SURFACE</div>
         <h2>What this demo proves</h2>
         <ul class="evidence-list">
           <li><strong>Pre-model intent boundary</strong><span id="boundaryEvidence">Ready for browser test</span></li>
@@ -77,13 +88,14 @@
 
     <section class="card feedback-card">
       <div>
-        <div class="kicker">5 • FEEDBACK LOOP</div>
-        <h2>Help the agent improve</h2>
-        <p>Judges can leave explicit feedback. When Firebase Authentication is enabled, this is written to the protected Firestore feedback collection.</p>
+        <div class="kicker">6 • FEEDBACK LOOP</div>
+        <h2>Improve the plan with explicit feedback</h2>
+        <p>First apply feedback locally to the reviewable plan. Saving is separate and only attempts a protected Firestore write after an explicit second click.</p>
       </div>
       <div class="feedback-form">
-        <textarea id="feedbackInput" rows="3" maxlength="500" placeholder="What should IntentGuard do better?"></textarea>
-        <button id="feedbackBtn" class="secondary">Save feedback</button>
+        <textarea id="feedbackInput" rows="3" maxlength="500" placeholder="Example: ask one precise question at a time."></textarea>
+        <button id="applyFeedbackBtn" class="ghost">Apply feedback to plan (local only)</button>
+        <button id="feedbackBtn" class="secondary">Save feedback separately</button>
         <div id="feedbackStatus" class="micro"></div>
       </div>
     </section>

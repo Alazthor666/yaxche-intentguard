@@ -16,8 +16,11 @@ const agentResponse = $("agentResponse");
 const responseTitle = $("responseTitle");
 const runtimeBadge = $("runtimeBadge");
 const feedbackInput = $("feedbackInput");
+const applyFeedbackBtn = $("applyFeedbackBtn");
 const feedbackBtn = $("feedbackBtn");
 const feedbackStatus = $("feedbackStatus");
+const planOutput = $("planOutput");
+const planStatus = $("planStatus");
 const selfTest = $("selfTest");
 const geminiEvidence = $("geminiEvidence");
 const boundaryEvidence = $("boundaryEvidence");
@@ -27,6 +30,8 @@ let auth = null;
 let db = null;
 let model = null;
 let firebaseReady = false;
+let activeIntent = null;
+let activeIntentPlan = null;
 
 function concrete(value) {
   return typeof value === "string" && value.length > 0 && !value.startsWith("__");
@@ -241,6 +246,30 @@ function buildIntentIR(text) {
   };
 }
 
+function buildIntentPlan(intent, feedback = "", version = 1) {
+  return {
+    schema: "intentguard.intent_plan.v1",
+    version,
+    source: "BROWSER_SESSION",
+    intent_status: intent.status,
+    next_step: intent.material_ambiguity
+      ? "ASK_ONE_PRECISE_QUESTION"
+      : "PREPARE_BOUNDED_ASSISTANCE",
+    feedback_preference: feedback || "No feedback applied yet.",
+    updated_by: feedback ? "EXPLICIT_HUMAN_FEEDBACK" : "INITIAL_INTENT_COMPILATION",
+    external_actions: "NONE",
+    persistence: "SESSION_LOCAL_ONLY",
+  };
+}
+
+function renderIntentPlan(plan) {
+  planOutput.textContent = JSON.stringify(plan, null, 2);
+  planStatus.className = "status-panel clear";
+  planStatus.innerHTML = `
+    <div class="status-title">Plan v${plan.version} — ${escapeHtml(plan.updated_by)}</div>
+    <div class="status-copy">${escapeHtml(plan.next_step)} · ${escapeHtml(plan.external_actions)} · ${escapeHtml(plan.persistence)}</div>`;
+}
+
 function renderIntent(intent) {
   intentOutput.textContent = JSON.stringify(intent, null, 2);
   if (intent.material_ambiguity) {
@@ -349,12 +378,30 @@ async function analyze() {
   analyzeBtn.textContent = "Analyzing…";
   try {
     const intent = buildIntentIR(request);
+    activeIntent = intent;
+    activeIntentPlan = buildIntentPlan(intent);
     renderIntent(intent);
+    renderIntentPlan(activeIntentPlan);
     await runAgent(request, intent);
   } finally {
     analyzeBtn.disabled = false;
     analyzeBtn.textContent = "Analyze intent";
   }
+}
+
+function applyFeedbackLocally() {
+  const feedback = normalize(feedbackInput.value);
+  if (!activeIntent || !activeIntentPlan) {
+    feedbackStatus.textContent = "Analyze a request before changing its plan.";
+    return;
+  }
+  if (!feedback) {
+    feedbackStatus.textContent = "Write feedback first.";
+    return;
+  }
+  activeIntentPlan = buildIntentPlan(activeIntent, feedback, activeIntentPlan.version + 1);
+  renderIntentPlan(activeIntentPlan);
+  feedbackStatus.textContent = "Applied to the session-local plan. Nothing was sent, saved, or executed.";
 }
 
 async function saveFeedback() {
@@ -434,6 +481,7 @@ document.querySelectorAll(".example").forEach((button) => {
 });
 
 analyzeBtn.addEventListener("click", analyze);
+applyFeedbackBtn.addEventListener("click", applyFeedbackLocally);
 feedbackBtn.addEventListener("click", saveFeedback);
 
 runBoundarySelfTest();

@@ -18,6 +18,9 @@ def test_judge_demo_preserves_core_intent_boundary_markers():
     assert "GoogleAIBackend" in text
     assert "intentguard_public_feedback" in text
     assert "must not infer missing human intent or authorization" in text
+    assert "intentguard.intent_plan.v1" in text
+    assert "SESSION_LOCAL_ONLY" in text
+    assert "external_actions: \"NONE\"" in text
 
 
 def test_firestore_rules_are_default_deny_with_feedback_create_only():

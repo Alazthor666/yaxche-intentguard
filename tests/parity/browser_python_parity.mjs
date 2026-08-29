@@ -32,14 +32,15 @@ source = source
 
   .replace(/^function setBadge[\s\S]*?^}$/gm, "")
   .replace(/^function renderIntent[\s\S]*?^}$/gm, "");
-source += "\nexport { buildIntentIR };\n";
+source += "\nexport { buildIntentIR, buildIntentPlan };\n";
 
 const shimPath = path.join(here, ".boundary-under-test.mjs");
 fs.writeFileSync(shimPath, source);
 
 let buildIntentIR;
+let buildIntentPlan;
 try {
-  ({ buildIntentIR } = await import(`file://${shimPath.replace(/\\/g, "/")}`));
+  ({ buildIntentIR, buildIntentPlan } = await import(`file://${shimPath.replace(/\\/g, "/")}`));
 } finally {
   fs.rmSync(shimPath, { force: true });
 }
@@ -80,5 +81,13 @@ for (const [request, mustStop] of CASES) {
 for (const f of failures) {
   console.error(`FAIL expected_stop=${f.expected} got=${f.actual} :: ${f.request}`);
 }
+const planV1 = buildIntentPlan(buildIntentIR("Write a haiku about the sea"));
+const planV2 = buildIntentPlan(buildIntentIR("Write a haiku about the sea"), "Use one concise question.", 2);
+const planFailure = planV1.external_actions !== "NONE"
+  || planV1.persistence !== "SESSION_LOCAL_ONLY"
+  || planV2.version !== 2
+  || planV2.updated_by !== "EXPLICIT_HUMAN_FEEDBACK";
+if (planFailure) console.error("FAIL session-local feedback plan contract");
 console.log(`BROWSER_BOUNDARY_PARITY=${CASES.length - failures.length}/${CASES.length}`);
-process.exit(failures.length === 0 ? 0 : 1);
+console.log(`BROWSER_PLAN_CONTRACT=${planFailure ? "FAIL" : "PASS"}`);
+process.exit(failures.length === 0 && !planFailure ? 0 : 1);
