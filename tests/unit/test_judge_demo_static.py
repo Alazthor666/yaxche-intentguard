@@ -28,8 +28,40 @@ def test_firestore_rules_are_default_deny_with_feedback_create_only():
     assert "allow read, write: if false" in text
 
 
-def test_firebase_config_contains_no_real_secret_material_yet():
+def test_firebase_config_contains_no_server_secret_material():
+    """Guard the thing that would actually be a breach.
+
+    An earlier version of this test asserted the placeholders were still in
+    place. That was the right worry enforced the wrong way: it made the demo
+    permanently undeployable, since going live means filling them in.
+
+    Firebase web configuration is public by design — the API key identifies the
+    project and authorizes nothing, and the reCAPTCHA site key is bound
+    server-side to the allowed domain. The real boundary is firestore.rules,
+    covered above. What must never appear here is server-side credential
+    material.
+
+        WEB_CLIENT_IDENTIFIER != SERVER_SECRET
+    """
     text = (ROOT / "public" / "firebase-config.js").read_text(encoding="utf-8")
-    assert "__FIREBASE_WEB_API_KEY__" in text
-    assert "__FIREBASE_WEB_APP_ID__" in text
-    assert "__RECAPTCHA_ENTERPRISE_SITE_KEY__" in text
+
+    forbidden = (
+        "-----BEGIN",           # any PEM private key block
+        "private_key",          # service account JSON field
+        "client_secret",        # OAuth client secret
+        "refresh_token",
+        "service_account",
+        "AIzaSyA_SERVER",       # placeholder shape for a server-restricted key
+    )
+    for marker in forbidden:
+        assert marker not in text, f"server secret material in client config: {marker}"
+
+    # A partially wired config is worse than an unwired one: it half-initializes
+    # and fails in ways that look like a bug rather than a missing setup step.
+    concrete = [
+        line for line in ("apiKey", "appId", "projectId")
+        if f'{line}: "__' not in text
+    ]
+    assert len(concrete) in (0, 3), (
+        f"firebase-config.js is partially wired: {concrete} concrete, the rest placeholders"
+    )
