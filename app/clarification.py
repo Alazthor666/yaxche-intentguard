@@ -16,6 +16,7 @@ PRESSURE != AUTHORITY
 HISTORICAL_DEFAULT != CURRENT_AUTHORIZATION
 ONE_CLEAR_ATOM != WHOLE_REQUEST_CLEAR
 RISK_SIGNAL != MATERIAL_AMBIGUITY
+MENTIONED_OBJECT != REQUESTED_ACTION
 ```
 """
 
@@ -36,7 +37,9 @@ _GENERIC_REQUESTS = {
 
 _OUTWARD_VERBS = r"(?:send|email|message|post|publish|share|transfer|pay|refund|charge|deploy|release|envia|envía|enviar|manda|mandar|publica|publicar|comparte|compartir|transfiere|transferir|paga|pagar|reembolsa|reembolsar|cobra|cobrar|despliega|desplegar)"
 _IRREVERSIBLE_VERBS = r"(?:delete|remove|drop|wipe|erase|purge|reset|revoke|overwrite|truncate|cancel|terminate|borra|borrar|elimina|eliminar|suprime|suprimir|vacía|vacia|vaciar|revoca|revocar|sobrescribe|sobrescribir|trunca|truncar|cancela|cancelar|termina|terminar)"
-_MONEY_VERBS = r"(?:pay|transfer|refund|charge|invoice|wire|reimburse|paga|pagar|transfiere|transferir|reembolsa|reembolsar|cobra|cobrar|factura|facturar)"
+# Only action verbs belong here. Objects such as "invoice/factura" must not be
+# treated as money movement merely because they are mentioned in a safe request.
+_MONEY_VERBS = r"(?:pay|transfer|refund|charge|wire|reimburse|paga|pagar|transfiere|transferir|reembolsa|reembolsar|cobra|cobrar|facturar)"
 _ACCESS_VERBS = r"(?:share|grant|give|comparte|compartir|otorga|otorgar|da|dar)"
 
 _PRESUMPTION_PATTERNS = (

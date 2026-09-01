@@ -81,10 +81,13 @@ function normalize(text) {
 //   HISTORICAL_DEFAULT != CURRENT_AUTHORIZATION
 //   ONE_CLEAR_ATOM != WHOLE_REQUEST_CLEAR
 //   RISK_SIGNAL != MATERIAL_AMBIGUITY
+//   MENTIONED_OBJECT != REQUESTED_ACTION
 
 const OUTWARD_VERBS = "(?:send|email|message|post|publish|share|transfer|pay|refund|charge|deploy|release|envia|envía|enviar|manda|mandar|publica|publicar|comparte|compartir|transfiere|transferir|paga|pagar|reembolsa|reembolsar|cobra|cobrar|despliega|desplegar)";
 const IRREVERSIBLE_VERBS = "(?:delete|remove|drop|wipe|erase|purge|reset|revoke|overwrite|truncate|cancel|terminate|borra|borrar|elimina|eliminar|suprime|suprimir|vacía|vacia|vaciar|revoca|revocar|sobrescribe|sobrescribir|trunca|truncar|cancela|cancelar|termina|terminar)";
-const MONEY_VERBS = "(?:pay|transfer|refund|charge|invoice|wire|reimburse|paga|pagar|transfiere|transferir|reembolsa|reembolsar|cobra|cobrar|factura|facturar)";
+// Financial objects are not action verbs: mentioning an invoice/factura in a
+// summary must not be reinterpreted as a request to move money.
+const MONEY_VERBS = "(?:pay|transfer|refund|charge|wire|reimburse|paga|pagar|transfiere|transferir|reembolsa|reembolsar|cobra|cobrar|facturar)";
 const ACCESS_VERBS = "(?:share|grant|give|comparte|compartir|otorga|otorgar|da|dar)";
 
 const PRESUMPTION_PATTERNS = [
@@ -134,9 +137,6 @@ const SENSITIVE_TARGET_PATTERNS = [
   /\bacceso\b/i,
 ];
 
-// A comma commonly introduces subordinate authorization context, so it stays
-// inside the same atom. Independent goals require a semicolon or an explicit
-// coordination connector.
 const ATOM_SPLIT_RE = /\s*(?:;|\b(?:and|then|also|plus|y|adem[aá]s|tambi[eé]n|luego|por cierto)\b)\s*/i;
 
 function decomposeIntent(request) {
