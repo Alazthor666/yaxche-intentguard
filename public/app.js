@@ -73,35 +73,114 @@ function normalize(text) {
   return text.trim().replace(/\s+/g, " ");
 }
 
-// This mirrors app/clarification.py. The browser must never claim a boundary
+// Mirrors app/clarification.py. The browser demo must never claim a boundary
 // the tested Python core does not implement.
 //
-// Design rule for every check: stop only when two readings of the same sentence
-// would lead the agent to act on a different target, recipient, scope, or
-// reversibility. Vague is not the same as materially ambiguous.
+// V1.1 atomic vaccines:
+//   PRESSURE != AUTHORITY
+//   HISTORICAL_DEFAULT != CURRENT_AUTHORIZATION
+//   ONE_CLEAR_ATOM != WHOLE_REQUEST_CLEAR
+//   RISK_SIGNAL != MATERIAL_AMBIGUITY
 
-const OUTWARD_VERBS = "(?:send|email|message|post|publish|share|transfer|pay|refund|charge|deploy|release)";
-const IRREVERSIBLE_VERBS = "(?:delete|remove|drop|wipe|erase|purge|reset|revoke|overwrite|truncate|cancel|terminate)";
+const OUTWARD_VERBS = "(?:send|email|message|post|publish|share|transfer|pay|refund|charge|deploy|release|envia|envía|enviar|manda|mandar|publica|publicar|comparte|compartir|transfiere|transferir|paga|pagar|reembolsa|reembolsar|cobra|cobrar|despliega|desplegar)";
+const IRREVERSIBLE_VERBS = "(?:delete|remove|drop|wipe|erase|purge|reset|revoke|overwrite|truncate|cancel|terminate|borra|borrar|elimina|eliminar|suprime|suprimir|vacía|vacia|vaciar|revoca|revocar|sobrescribe|sobrescribir|trunca|truncar|cancela|cancelar|termina|terminar)";
+const MONEY_VERBS = "(?:pay|transfer|refund|charge|invoice|wire|reimburse|paga|pagar|transfiere|transferir|reembolsa|reembolsar|cobra|cobrar|factura|facturar)";
+const ACCESS_VERBS = "(?:share|grant|give|comparte|compartir|otorga|otorgar|da|dar)";
+
+const PRESUMPTION_PATTERNS = [
+  /\bas usual\b/i,
+  /\bthe usual\b/i,
+  /\bsame as always\b/i,
+  /\byou know(?: the one)?\b/i,
+  /\bdefault (?:account|address|recipient|destination|settings?)\b/i,
+  /\bcomo siempre\b/i,
+  /\blo habitual\b/i,
+  /\bya sabes\b/i,
+  /\bcomo ya sabes\b/i,
+  /\bde costumbre\b/i,
+  /\b(?:la |el )?(?:direcci[oó]n|cuenta|destino|configuraci[oó]n) de siempre\b/i,
+];
+
+const PRESSURE_PATTERNS = [
+  /\burgent(?:ly)?\b/i,
+  /\bright now\b/i,
+  /\bno time\b/i,
+  /\bdo it now\b/i,
+  /\bimmediately\b/i,
+  /\basap\b/i,
+  /\burgente\b/i,
+  /\bahora mismo\b/i,
+  /\bno hay tiempo\b/i,
+  /\bhazlo ya\b/i,
+  /\binmediatamente\b/i,
+  /\bperderemos? (?:la )?cuenta\b/i,
+];
+
+const SENSITIVE_TARGET_PATTERNS = [
+  /\blogs?\b/i,
+  /\bdatabase\b/i,
+  /\bbase de datos\b/i,
+  /\bpasswords?\b/i,
+  /\bcontrase(?:ñ|n)as?\b/i,
+  /\bcredentials?\b/i,
+  /\bcredenciales\b/i,
+  /\bconfiguration\b/i,
+  /\bconfiguraci[oó]n\b/i,
+  /\bpermissions?\b/i,
+  /\bpermisos?\b/i,
+  /\bproduction\b/i,
+  /\bproducci[oó]n\b/i,
+  /\baccess\b/i,
+  /\bacceso\b/i,
+];
+
+const ATOM_SPLIT_RE = /\s*(?:[;,]|\b(?:and|then|also|plus|y|adem[aá]s|tambi[eé]n|luego|por cierto)\b)\s*/i;
+
+function decomposeIntent(request) {
+  const text = normalize(request);
+  if (!text) return [];
+  return text.split(ATOM_SPLIT_RE).map(normalize).filter(Boolean);
+}
+
+function matchesAny(lower, patterns) {
+  return patterns.some((pattern) => pattern.test(lower));
+}
+
+function hasPresumption(lower) {
+  return matchesAny(lower, PRESUMPTION_PATTERNS);
+}
+
+function hasPressure(lower) {
+  return matchesAny(lower, PRESSURE_PATTERNS);
+}
+
+function hasSensitiveTarget(lower) {
+  return matchesAny(lower, SENSITIVE_TARGET_PATTERNS);
+}
 
 function hasUnnegated(lower, verbGroup) {
-  // "Do not send it" contains `send`, but forbids the action rather than
-  // requesting it. Treating that as a request produces exactly the pointless
-  // question that makes a clarifying agent unusable.
   const re = new RegExp(`\\b${verbGroup}\\b`, "g");
   let match;
   while ((match = re.exec(lower)) !== null) {
-    const window = lower.slice(Math.max(0, match.index - 40), match.index);
-    if (/\b(?:do not|don't|never|without|avoid|refrain from|no)\b[\w\s,]{0,25}$/.test(window)) continue;
+    const window = lower.slice(Math.max(0, match.index - 48), match.index);
+    if (/\b(?:do not|don't|never|without|avoid|refrain from|no|nunca|sin|evita|evitar)\b[\w\s,áéíóúñü]{0,30}$/.test(window)) continue;
     return true;
   }
   return false;
 }
 
+function hasHighImpactAction(lower) {
+  return hasUnnegated(lower, OUTWARD_VERBS)
+    || hasUnnegated(lower, IRREVERSIBLE_VERBS)
+    || hasUnnegated(lower, MONEY_VERBS)
+    || hasUnnegated(lower, ACCESS_VERBS);
+}
+
 function hasExplicitRecipient(lower) {
   return lower.includes("@")
-    || new RegExp(`\\b${OUTWARD_VERBS}\\b[^.!?]{0,160}\\bto\\s+\\S+`).test(lower)
-    || /\brecipient\s+(?:is|=)\s+\S+/.test(lower)
-    || /\bwith\s+(?:the\s+)?(?:team|client|customer|group)\b/.test(lower);
+    || new RegExp(`\\b${OUTWARD_VERBS}\\b[^.!?]{0,160}\\b(?:to|a|para)\\s+\\S+`).test(lower)
+    || /\b(?:recipient|destinatario|destinataria)\s+(?:is|es|=)\s+\S+/.test(lower)
+    || /\b(?:with|con)\s+(?:the\s+|el\s+|la\s+)?(?:team|client|customer|group|equipo|cliente|grupo)\b/.test(lower);
 }
 
 function hasAuthorizationUncertainty(lower) {
@@ -111,18 +190,30 @@ function hasAuthorizationUncertainty(lower) {
     /\bdon't assume\b[^.!?]{0,120}\bauthori[sz]/,
     /\bwithout assuming\b[^.!?]{0,120}\bauthori[sz]/,
     /\bnot sure\b[^.!?]{0,80}\b(?:allowed|permitted|approved)/,
+    /\b(?:si|no s[eé] si)\b[^.!?]{0,100}\bautoriza/,
+    /\bno (?:asumas?|supongas?)\b[^.!?]{0,120}\bautoriza/,
+    /\bsin (?:asumir|suponer)\b[^.!?]{0,120}\bautoriza/,
   ].some((pattern) => pattern.test(lower));
 }
 
 function hasConcreteTarget(lower) {
   return /["'`][^"'`]{2,}["'`]/.test(lower)
-    || /[/\\][\w.-]+/.test(lower)
-    || /\b(?:named|called|id|uuid|ticket|issue|pr)\s+\S+/.test(lower);
+    || /(?:^|\s)(?:[a-zA-Z]:)?[/\\][\w.\-/\\]+/.test(lower)
+    || /\b[\w.-]+(?:[/\\][\w.-]+)+\b/.test(lower)
+    || /\b(?:named|called|id|uuid|ticket|issue|pr|llamado|llamada|folio|archivo|file|rama|branch)\s+\S+/.test(lower);
+}
+
+function detectPresumptionStop(lower) {
+  if (!hasPresumption(lower) || !hasHighImpactAction(lower)) return null;
+  return {
+    unknowns: ["current explicit target/recipient/parameters"],
+    question: "This request relies on a historical/default assumption. What exact current target, recipient, scope, and parameters should I use?",
+  };
 }
 
 function detectMoneyStop(lower) {
-  if (!/\b(?:pay|transfer|refund|charge|invoice|wire|reimburse)\b/.test(lower)) return null;
-  const hasAmount = /(?:[$€£¥]\s?\d|\b\d+(?:[.,]\d+)?\s*(?:usd|eur|mxn|dollars|pesos)\b)/.test(lower);
+  if (!hasUnnegated(lower, MONEY_VERBS)) return null;
+  const hasAmount = /(?:[$€£¥]\s?\d|\b\d+(?:[.,]\d+)?\s*(?:usd|eur|mxn|dollars?|pesos?|d[oó]lares?)\b)/.test(lower);
   const unknowns = [];
   if (!hasAmount) unknowns.push("amount");
   if (!hasExplicitRecipient(lower)) unknowns.push("payee");
@@ -134,9 +225,8 @@ function detectMoneyStop(lower) {
 }
 
 function detectIrreversibleStop(lower) {
-
   if (!hasUnnegated(lower, IRREVERSIBLE_VERBS)) return null;
-  const dangling = new RegExp(`^${IRREVERSIBLE_VERBS}\\s+(?:it|this|that|them|those|these|everything|all)\\b`);
+  const dangling = new RegExp(`^${IRREVERSIBLE_VERBS}\\s+(?:it|this|that|them|those|these|everything|all|eso|esto|aquello|ellos|ellas|todo|todos|todas)\\b`);
   if (dangling.test(lower) || !hasConcreteTarget(lower)) {
     return {
       unknowns: ["exact target of an irreversible action"],
@@ -147,8 +237,8 @@ function detectIrreversibleStop(lower) {
 }
 
 function detectScopeStop(lower) {
-  if (!/\b(?:all|every|everything|entire|whole)\b/.test(lower)) return null;
-  if (!new RegExp(`\\b${IRREVERSIBLE_VERBS}\\b|\\b${OUTWARD_VERBS}\\b`).test(lower)) return null;
+  if (!/\b(?:all|every|everything|entire|whole|todos?|todas?|todo|cada|completo|completa)\b/.test(lower)) return null;
+  if (!hasUnnegated(lower, IRREVERSIBLE_VERBS) && !hasUnnegated(lower, OUTWARD_VERBS)) return null;
   if (hasConcreteTarget(lower)) return null;
   return {
     unknowns: ["scope of the affected set"],
@@ -157,11 +247,11 @@ function detectScopeStop(lower) {
 }
 
 function detectAccessStop(lower) {
-  const grantsAccess = /\b(?:share|grant|give)\b[^.!?]{0,60}\b(?:access|permission|rights)\b/.test(lower);
-  const sharesWith = /\bshare\b[^.!?]{0,80}\bwith\s+\S+/.test(lower);
+  const grantsAccess = new RegExp(`\\b${ACCESS_VERBS}\\b[^.!?]{0,60}\\b(?:access|permission|rights|acceso|permiso|permisos)\\b`).test(lower);
+  const sharesWith = /\b(?:share|comparte|compartir)\b[^.!?]{0,80}\b(?:with|con)\s+\S+/.test(lower);
   if (!grantsAccess && !sharesWith) return null;
-  if (!hasUnnegated(lower, "(?:share|grant|give)")) return null;
-  if (/\b(?:read[- ]only|view(?:er)?|edit(?:or)?|write|admin|owner|comment)\b/.test(lower)) return null;
+  if (!hasUnnegated(lower, ACCESS_VERBS)) return null;
+  if (/\b(?:read[- ]only|view(?:er)?|edit(?:or)?|write|admin|owner|comment|solo lectura|lectura|ver|comentar|editar|escritura|administrador|administradora|propietario|propietaria)\b/.test(lower)) return null;
   return {
     unknowns: ["access level"],
     question: "What level of access should they get — view, comment, edit, or admin?",
@@ -175,7 +265,7 @@ function detectOutwardStop(lower) {
   if (hasAuthorizationUncertainty(lower)) unknowns.push("execution authorization");
   if (!unknowns.length) return null;
 
-  const verb = /\b(?:send|email|message)\b/.test(lower) ? "send" : "do";
+  const verb = /\b(?:send|email|message|envia|envía|enviar|manda|mandar)\b/.test(lower) ? "send" : "do";
   let question;
   if (unknowns.length === 1 && unknowns[0] === "recipient") {
     question = "Who should receive it?";
@@ -187,9 +277,8 @@ function detectOutwardStop(lower) {
   return { unknowns, question };
 }
 
-// Order matters: the most consequential class wins, so the question the user
-// sees is about the thing that could hurt most.
 const DETECTORS = [
+  ["presumption", detectPresumptionStop, "historical/default context is being used as a current high-impact parameter"],
   ["money", detectMoneyStop, "value would move with an unknown amount or payee"],
   ["irreversible", detectIrreversibleStop, "the action cannot be undone and the target is not named"],
   ["scope", detectScopeStop, "an unbounded quantifier changes how much this touches"],
@@ -197,24 +286,58 @@ const DETECTORS = [
   ["outward", detectOutwardStop, "the effect leaves the agent and the recipient is unknown"],
 ];
 
-// What a typical agent would do with the same input: pick the most plausible
-// reading and proceed. Plausible is not the same as authorized, and that gap is
-// the entire product.
+function atomicSignalConstraints(atomsLower) {
+  const constraints = [];
+  if (atomsLower.length > 1) constraints.push(`atomic intent decomposition applied: ${atomsLower.length} clauses`);
+  if (atomsLower.some(hasPressure)) constraints.push("urgency/pressure detected; pressure does not expand authority");
+  if (atomsLower.some(hasHighImpactAction)) constraints.push("high-impact action detected; downstream explicit authorization remains required");
+  if (atomsLower.some((atom) => hasSensitiveTarget(atom) && hasHighImpactAction(atom))) {
+    constraints.push("sensitive target detected; downstream policy/authorization must fail closed");
+  }
+  if (atomsLower.some(hasPresumption)) {
+    constraints.push("historical/default-context language detected; current authorization cannot be inferred");
+  }
+  return constraints;
+}
+
+function analyzeIntentAtoms(request) {
+  return decomposeIntent(request).map((atom, index) => {
+    const lower = atom.toLocaleLowerCase().replace(/[.!?]+$/g, "");
+    let stop = null;
+    let rule = null;
+    for (const [candidateRule, detect] of DETECTORS) {
+      stop = detect(lower);
+      if (stop) {
+        rule = candidateRule;
+        break;
+      }
+    }
+    return {
+      index,
+      atom,
+      pressure_detected: hasPressure(lower),
+      presumption_detected: hasPresumption(lower),
+      high_impact_action_detected: hasHighImpactAction(lower),
+      sensitive_action_detected: hasSensitiveTarget(lower) && hasHighImpactAction(lower),
+      material_stop: Boolean(stop),
+      boundary_rule: rule,
+      unknowns: stop?.unknowns || [],
+    };
+  });
+}
+
 function naiveAgentGuess(lower) {
-  // Respect negation here too. Claiming a typical agent would send when the
-  // user wrote "do not send" would be stacking the contrast in our favour, and
-  // a judge who notices that stops trusting everything else on the page.
-  if (hasUnnegated(lower, "(?:pay|transfer|refund|charge|wire|reimburse)")) {
+  if (hasUnnegated(lower, MONEY_VERBS)) {
     return "Assumes the last invoice and the default account, then moves the money.";
   }
-  if (new RegExp(`^${IRREVERSIBLE_VERBS}\\b`).test(lower) && hasUnnegated(lower, IRREVERSIBLE_VERBS)) {
-    return "Assumes the most recently mentioned item and deletes it.";
+  if (hasUnnegated(lower, IRREVERSIBLE_VERBS)) {
+    return "Assumes the most recently mentioned item and performs the irreversible action.";
   }
-  if (hasUnnegated(lower, "(?:share|grant|give)")) {
-    return "Assumes edit access, because that is the common default.";
+  if (hasUnnegated(lower, ACCESS_VERBS)) {
+    return "Assumes a common access level instead of asking what was authorized.";
   }
   if (hasUnnegated(lower, OUTWARD_VERBS)) {
-    return "Assumes the last person in the thread and sends it.";
+    return "Assumes the most plausible destination and proceeds.";
   }
   return "Proceeds directly — and here that is the right call.";
 }
@@ -238,11 +361,10 @@ function buildIntentIR(text) {
   const generic = new Set([
     "do it", "fix it", "handle it", "handle this", "make it better",
     "take care of it", "take care of this", "sort it out", "deal with it",
-    "you know what to do",
+    "you know what to do", "hazlo", "arreglalo", "arréglalo", "encargate",
+    "encárgate", "hazte cargo", "ya sabes", "tu sabes que hacer", "tú sabes qué hacer",
   ]);
 
-  // Brevity is not ambiguity. "Delete /etc/hosts" is two words and perfectly
-  // specific; "handle it" is two words and says nothing.
   const tooShort = lower.split(/\s+/).length < 3 && !hasConcreteTarget(lower);
   if (generic.has(lower) || tooShort) {
     return {
@@ -257,31 +379,55 @@ function buildIntentIR(text) {
     };
   }
 
+  const atoms = decomposeIntent(request);
+  const atomsLower = atoms.map((atom) => atom.toLocaleLowerCase().replace(/[.!?]+$/g, ""));
   const constraints = [];
-  if (lower.includes(" without ")) constraints.push("contains an explicit 'without' restriction");
-  if (lower.includes(" before ")) constraints.push("contains an explicit deadline/order constraint");
-  if (lower.includes(" must ")) constraints.push("contains an explicit mandatory condition");
-  if (lower.includes("do not assume") || lower.includes("don't assume")) {
+
+  if (lower.includes(" without ") || lower.includes(" sin ")) constraints.push("contains an explicit 'without/sin' restriction");
+  if (lower.includes(" before ") || lower.includes(" antes ")) constraints.push("contains an explicit deadline/order constraint");
+  if (lower.includes(" must ") || lower.includes(" debe ")) constraints.push("contains an explicit mandatory condition");
+  if (lower.includes("do not assume") || lower.includes("don't assume") || lower.includes("no asumas") || lower.includes("no supongas")) {
     constraints.push("must not infer missing human intent or authorization");
   }
-  if (/\bdo not (?:send|publish|share|delete)\b/.test(lower)) {
+  if (new RegExp(`\\b(?:do not|no)\\s+(?:${OUTWARD_VERBS}|${IRREVERSIBLE_VERBS})\\b`).test(lower)) {
     constraints.push("explicitly forbids an outward or irreversible action");
   }
+  constraints.push(...atomicSignalConstraints(atomsLower));
 
-  for (const [rule, detect, because] of DETECTORS) {
-    const stop = detect(lower);
-    if (stop) {
+  const uniqueConstraints = [...new Set(constraints)];
+
+  for (let index = 0; index < atomsLower.length; index += 1) {
+    if (generic.has(atomsLower[index])) {
       return {
         original_request: request,
         normalized_goal: request,
-        constraints,
+        constraints: [...uniqueConstraints, `blocking atom ${index + 1}/${atomsLower.length}: generic intent`],
+        unknowns: ["specific outcome", "target"],
+        success_criteria: [],
+        material_ambiguity: true,
+        clarification_question: "What specific outcome should I produce, and what should I act on?",
+        status: "CLARIFY_BEFORE_EXECUTION",
+        boundary_rule: "generic",
+        boundary_reason: `generic intent in atomic clause ${index + 1}/${atomsLower.length}`,
+      };
+    }
+  }
+
+  for (const [rule, detect, because] of DETECTORS) {
+    for (let index = 0; index < atomsLower.length; index += 1) {
+      const stop = detect(atomsLower[index]);
+      if (!stop) continue;
+      return {
+        original_request: request,
+        normalized_goal: request,
+        constraints: [...uniqueConstraints, `blocking atom ${index + 1}/${atomsLower.length}: ${rule}`],
         unknowns: stop.unknowns,
         success_criteria: [],
         material_ambiguity: true,
         clarification_question: stop.question,
         status: "CLARIFY_BEFORE_EXECUTION",
         boundary_rule: rule,
-        boundary_reason: because,
+        boundary_reason: `${because}; atomic clause ${index + 1}/${atomsLower.length}`,
       };
     }
   }
@@ -289,14 +435,14 @@ function buildIntentIR(text) {
   return {
     original_request: request,
     normalized_goal: request,
-    constraints,
+    constraints: uniqueConstraints,
     unknowns: [],
     success_criteria: [],
     material_ambiguity: false,
     clarification_question: null,
     status: "CLEAR_ENOUGH",
     boundary_rule: null,
-    boundary_reason: "every plausible reading leads to the same safe action",
+    boundary_reason: "every atomic clause is clear enough; authorization remains separate",
   };
 }
 
@@ -443,8 +589,6 @@ async function runAgent(request, intent) {
     const result = await model.generateContent(boundedPrompt);
     const text = result.response.text();
     agentResponse.textContent = text || "Gemini returned no textual response.";
-    // The model answered. That establishes that a call happened, and nothing
-    // about whether what it said is true.
     setState(stGemini, "UNVERIFIED");
     geminiEvidence.textContent = "Live Gemini 3.7 Flash response returned just now, in this browser";
     setEpistemic({ fact: "not established", auth: "none", indep: "no" });
@@ -521,11 +665,7 @@ async function saveFeedback() {
   }
 }
 
-// Mirrors tests/unit/test_clarification.py. Every case runs in the judge's own
-// browser on page load, so the claim is verified in front of them rather than
-// asserted in a README.
 const BOUNDARY_CASES = [
-  // stops
   ["Do it", "CLARIFY_BEFORE_EXECUTION"],
   ["Delete it.", "CLARIFY_BEFORE_EXECUTION"],
   ["I need to send an important report today. Help me do it, but do not assume who should receive it or whether I have authorized sending it.", "CLARIFY_BEFORE_EXECUTION"],
@@ -534,13 +674,19 @@ const BOUNDARY_CASES = [
   ["Delete all the old records", "CLARIFY_BEFORE_EXECUTION"],
   ["Wipe them from the system", "CLARIFY_BEFORE_EXECUTION"],
   ["Grant access to the repo", "CLARIFY_BEFORE_EXECUTION"],
-  // continues — a clarifying agent that stops on everything is unusable
+  ["Draft a note for ticket 123 and delete it", "CLARIFY_BEFORE_EXECUTION"],
+  ["Email a summary to alice@example.com and publish the post", "CLARIFY_BEFORE_EXECUTION"],
+  ["Redacta un correo amable para el cliente y borra los logs de la base de datos", "CLARIFY_BEFORE_EXECUTION"],
+  ["Transfer 500 USD to the usual account", "CLARIFY_BEFORE_EXECUTION"],
   ["Draft a concise executive summary of this project for a hackathon judge. Do not send or publish anything.", "CLEAR_ENOUGH"],
   ["Transfer 500 USD to alice@example.com", "CLEAR_ENOUGH"],
   ["Share the roadmap doc with the team as read-only", "CLEAR_ENOUGH"],
   ["Delete the file named archive.zip", "CLEAR_ENOUGH"],
   ["Do not delete anything, just list the files", "CLEAR_ENOUGH"],
   ["Write a haiku about the sea", "CLEAR_ENOUGH"],
+  ["Urgent: summarize the meeting notes into three bullets", "CLEAR_ENOUGH"],
+  ["Delete the file named archive.zip immediately", "CLEAR_ENOUGH"],
+  ["Write the summary in the usual tone", "CLEAR_ENOUGH"],
 ];
 
 function runBoundarySelfTest() {
@@ -564,10 +710,6 @@ document.querySelectorAll(".example").forEach((button) => {
   });
 });
 
-// A judge has minutes, not patience for typing. The tour walks the three cases
-// that matter, in the order that makes the point: it stops when it should, it
-// stops for a different reason when the danger is different, and — the part
-// most safety demos never show — it gets out of the way when nothing is at risk.
 const TOUR = [
   {
     label: "1/3 · Ambiguous — it asks instead of guessing",
