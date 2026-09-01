@@ -25,3 +25,9 @@ def test_strong_coordination_markers_create_independent_atoms():
         "Draft the title",
         "summarize the notes",
     ]
+
+
+def test_financial_object_mention_is_not_a_money_action():
+    result = compile_intent("Do not transfer money; just summarize the invoice")
+    assert result.material_ambiguity is False
+    assert result.status == "CLEAR_ENOUGH"
