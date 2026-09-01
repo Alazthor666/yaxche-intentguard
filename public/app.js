@@ -134,7 +134,10 @@ const SENSITIVE_TARGET_PATTERNS = [
   /\bacceso\b/i,
 ];
 
-const ATOM_SPLIT_RE = /\s*(?:[;,]|\b(?:and|then|also|plus|y|adem[aá]s|tambi[eé]n|luego|por cierto)\b)\s*/i;
+// A comma commonly introduces subordinate authorization context, so it stays
+// inside the same atom. Independent goals require a semicolon or an explicit
+// coordination connector.
+const ATOM_SPLIT_RE = /\s*(?:;|\b(?:and|then|also|plus|y|adem[aá]s|tambi[eé]n|luego|por cierto)\b)\s*/i;
 
 function decomposeIntent(request) {
   const text = normalize(request);
