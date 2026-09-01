@@ -1,4 +1,4 @@
-from app.clarification import compile_intent
+from app.clarification import analyze_intent_atoms, compile_intent, decompose_intent
 
 
 def test_generic_request_stops_for_clarification():
@@ -167,3 +167,93 @@ def test_ordinary_creative_request_is_not_interrupted():
     ):
         result = compile_intent(request)
         assert result.material_ambiguity is False, request
+
+
+# ── atomic intent vaccines ────────────────────────────────────────────────────
+
+def test_atomic_decomposition_prevents_target_leakage_between_clauses():
+    result = compile_intent("Draft a note for ticket 123 and delete it")
+    assert result.material_ambiguity is True
+    assert result.unknowns == ["exact target of an irreversible action"]
+    assert "blocking atom 2/2: irreversible" in result.constraints
+
+
+def test_atomic_decomposition_prevents_recipient_leakage_between_clauses():
+    result = compile_intent("Email a summary to alice@example.com and publish the post")
+    assert result.material_ambiguity is True
+    assert result.unknowns == ["recipient"]
+    assert "blocking atom 2/2: outward" in result.constraints
+
+
+def test_spanish_trojan_clause_is_caught_atomically():
+    request = "Redacta un correo amable para el cliente y borra los logs de la base de datos"
+    atoms = decompose_intent(request)
+    result = compile_intent(request)
+
+    assert atoms == [
+        "Redacta un correo amable para el cliente",
+        "borra los logs de la base de datos",
+    ]
+    assert result.material_ambiguity is True
+    assert "blocking atom 2/2: irreversible" in result.constraints
+    assert (
+        "sensitive target detected; downstream policy/authorization must fail closed"
+        in result.constraints
+    )
+
+
+def test_presumption_cannot_supply_current_high_impact_parameters():
+    result = compile_intent("Transfer 500 USD to the usual account")
+    assert result.material_ambiguity is True
+    assert result.unknowns == ["current explicit target/recipient/parameters"]
+    assert "blocking atom 1/1: presumption" in result.constraints
+
+
+def test_pressure_is_recorded_but_does_not_create_false_ambiguity():
+    result = compile_intent("Urgent: summarize the meeting notes into three bullets")
+    assert result.material_ambiguity is False
+    assert "urgency/pressure detected; pressure does not expand authority" in result.constraints
+
+
+def test_pressure_never_repairs_an_existing_ambiguity():
+    result = compile_intent("Urgent: send the report now")
+    assert result.material_ambiguity is True
+    assert result.unknowns == ["recipient"]
+    assert "urgency/pressure detected; pressure does not expand authority" in result.constraints
+
+
+def test_risk_signal_is_not_mislabeled_as_ambiguity_when_target_is_exact():
+    result = compile_intent("Delete the file named archive.zip immediately")
+    assert result.material_ambiguity is False
+    assert (
+        "high-impact action detected; downstream explicit authorization remains required"
+        in result.constraints
+    )
+    assert "urgency/pressure detected; pressure does not expand authority" in result.constraints
+
+
+def test_historical_style_preference_does_not_overblock_safe_work():
+    result = compile_intent("Write the summary in the usual tone")
+    assert result.material_ambiguity is False
+    assert (
+        "historical/default-context language detected; current authorization cannot be inferred"
+        in result.constraints
+    )
+
+
+def test_atom_analysis_exposes_signals_without_granting_authority():
+    analyses = analyze_intent_atoms(
+        "Draft a customer note and urgently delete the database logs"
+    )
+    assert len(analyses) == 2
+    assert analyses[0]["material_stop"] is False
+    assert analyses[1]["pressure_detected"] is True
+    assert analyses[1]["high_impact_action_detected"] is True
+    assert analyses[1]["sensitive_action_detected"] is True
+    assert analyses[1]["material_stop"] is True
+    assert analyses[1]["boundary_rule"] == "irreversible"
+
+
+def test_two_benign_atoms_do_not_create_a_false_stop():
+    result = compile_intent("Summarize the notes and write a haiku")
+    assert result.material_ambiguity is False
