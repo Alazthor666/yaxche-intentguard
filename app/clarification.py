@@ -49,15 +49,12 @@ _GENERIC_REQUESTS = {
     "tú sabes qué hacer",
 }
 
-# Effects that leave the agent's own workspace and reach a person, a system of
-# record, production, or money.
 _OUTWARD_VERBS = (
     r"(?:send|email|message|post|publish|share|transfer|pay|refund|charge|deploy|release|"
     r"envia|envía|enviar|manda|mandar|publica|publicar|comparte|compartir|transfiere|"
     r"transferir|paga|pagar|reembolsa|reembolsar|cobra|cobrar|despliega|desplegar)"
 )
 
-# Effects that cannot be undone merely by running the agent again.
 _IRREVERSIBLE_VERBS = (
     r"(?:delete|remove|drop|wipe|erase|purge|reset|revoke|overwrite|truncate|cancel|terminate|"
     r"borra|borrar|elimina|eliminar|suprime|suprimir|vacía|vacia|vaciar|revoca|revocar|"
@@ -123,10 +120,6 @@ _DANGLING_PRONOUN_RE = re.compile(
     r"eso|esto|aquello|ellos|ellas|todo|todos|todas)\b"
 )
 
-# Split only on explicit coordination/punctuation. False splitting is acceptable
-# only when it does not create a stop; detector priority still applies to each
-# clause independently. We deliberately do not split on "or/o" because
-# alternatives are not independent execution goals.
 _ATOM_SPLIT_RE = re.compile(
     r"\s*(?:[;,]|\b(?:and|then|also|plus|y|adem[aá]s|tambi[eé]n|luego|por cierto)\b)\s*",
     flags=re.IGNORECASE,
@@ -145,12 +138,7 @@ def _normalize(text: str) -> str:
 
 
 def decompose_intent(request: str) -> list[str]:
-    """Split a request into independently auditable intent atoms.
-
-    This is intentionally conservative and deterministic. It is not a semantic
-    parser. Its purpose is to prevent context from one clause satisfying a
-    missing target/recipient/parameter in another clause.
-    """
+    """Split a request into independently auditable intent atoms."""
 
     text = _normalize(request)
     if not text:
@@ -206,8 +194,6 @@ def _has_authorization_uncertainty(lower: str) -> bool:
 
 
 def _has_concrete_target(lower: str) -> bool:
-    """A quoted name, a path, an id, or an explicitly named object."""
-
     if re.search(r"[\"'`][^\"'`]{2,}[\"'`]", lower):
         return True
     if re.search(r"(?:^|\s)(?:[a-zA-Z]:)?[/\\][\w.\-/\\]+", lower):
@@ -224,8 +210,6 @@ def _has_concrete_target(lower: str) -> bool:
 
 
 def _has_unnegated(lower: str, verb_group: str) -> bool:
-    """True when the verb appears as a request, not as a prohibition."""
-
     for match in re.finditer(rf"\b{verb_group}\b", lower):
         window = lower[max(0, match.start() - 48):match.start()]
         if re.search(
@@ -242,22 +226,17 @@ def _has_high_impact_action(lower: str) -> bool:
     return (
         _has_unnegated(lower, _OUTWARD_VERBS)
         or _has_unnegated(lower, _IRREVERSIBLE_VERBS)
-        or bool(re.search(rf"\b{_MONEY_VERBS}\b", lower))
-        or bool(re.search(rf"\b{_ACCESS_VERBS}\b", lower))
+        or _has_unnegated(lower, _MONEY_VERBS)
+        or _has_unnegated(lower, _ACCESS_VERBS)
     )
 
 
 def _detect_presumption_stop(lower: str) -> _Stop | None:
-    """Historical/default context cannot fill current high-impact parameters."""
-
     if not _has_presumption(lower) or not _has_high_impact_action(lower):
         return None
     return _Stop(
         ["current explicit target/recipient/parameters"],
-        (
-            "This request relies on a historical/default assumption. "
-            "What exact current target, recipient, scope, and parameters should I use?"
-        ),
+        "This request relies on a historical/default assumption. What exact current target, recipient, scope, and parameters should I use?",
         "presumption",
     )
 
@@ -265,27 +244,20 @@ def _detect_presumption_stop(lower: str) -> _Stop | None:
 def _detect_outward_stop(lower: str) -> _Stop | None:
     if not _has_unnegated(lower, _OUTWARD_VERBS):
         return None
-
     unknowns: list[str] = []
     if not _has_explicit_recipient(lower):
         unknowns.append("recipient")
     if _has_authorization_uncertainty(lower):
         unknowns.append("execution authorization")
-
     if not unknowns:
         return None
-
     verb = "send" if re.search(r"\b(?:send|email|message|envia|envía|enviar|manda|mandar)\b", lower) else "do"
-
     if unknowns == ["recipient"]:
         question = "Who should receive it?"
     elif unknowns == ["execution authorization"]:
         question = f"Are you authorizing me to {verb} it, or only to help prepare it?"
     else:
-        question = (
-            f"Who should receive it, and are you authorizing me to {verb} it "
-            "or only to help prepare it?"
-        )
+        question = f"Who should receive it, and are you authorizing me to {verb} it or only to help prepare it?"
     return _Stop(unknowns, question, "outward")
 
 
@@ -302,12 +274,10 @@ def _detect_irreversible_stop(lower: str) -> _Stop | None:
 
 
 def _detect_money_stop(lower: str) -> _Stop | None:
-    if not re.search(rf"\b{_MONEY_VERBS}\b", lower):
+    if not _has_unnegated(lower, _MONEY_VERBS):
         return None
-
     has_amount = re.search(
-        r"(?:[$€£¥]\s?\d|\b\d+(?:[.,]\d+)?\s*"
-        r"(?:usd|eur|mxn|dollars?|pesos?|d[oó]lares?)\b)",
+        r"(?:[$€£¥]\s?\d|\b\d+(?:[.,]\d+)?\s*(?:usd|eur|mxn|dollars?|pesos?|d[oó]lares?)\b)",
         lower,
     )
     has_destination = _has_explicit_recipient(lower)
@@ -328,8 +298,7 @@ def _detect_money_stop(lower: str) -> _Stop | None:
 
 def _detect_scope_stop(lower: str) -> _Stop | None:
     if not re.search(
-        r"\b(?:all|every|everything|entire|whole|todos?|todas?|todo|cada|"
-        r"completo|completa)\b",
+        r"\b(?:all|every|everything|entire|whole|todos?|todas?|todo|cada|completo|completa)\b",
         lower,
     ):
         return None
@@ -349,8 +318,7 @@ def _detect_scope_stop(lower: str) -> _Stop | None:
 
 def _detect_access_stop(lower: str) -> _Stop | None:
     grants_access = re.search(
-        rf"\b{_ACCESS_VERBS}\b[^.!?]{{0,60}}\b"
-        r"(?:access|permission|rights|acceso|permiso|permisos)\b",
+        rf"\b{_ACCESS_VERBS}\b[^.!?]{{0,60}}\b(?:access|permission|rights|acceso|permiso|permisos)\b",
         lower,
     )
     shares_with = re.search(
@@ -362,9 +330,7 @@ def _detect_access_stop(lower: str) -> _Stop | None:
     if not _has_unnegated(lower, _ACCESS_VERBS):
         return None
     if re.search(
-        r"\b(?:read[- ]only|view(?:er)?|edit(?:or)?|write|admin|owner|comment|"
-        r"solo lectura|lectura|ver|comentar|editar|escritura|administrador|"
-        r"administradora|propietario|propietaria)\b",
+        r"\b(?:read[- ]only|view(?:er)?|edit(?:or)?|write|admin|owner|comment|solo lectura|lectura|ver|comentar|editar|escritura|administrador|administradora|propietario|propietaria)\b",
         lower,
     ):
         return None
@@ -375,8 +341,6 @@ def _detect_access_stop(lower: str) -> _Stop | None:
     )
 
 
-# Consequence priority is global across all atoms. A low-risk ambiguity in atom
-# one must not hide a money or irreversible ambiguity in atom two.
 _DETECTORS = (
     _detect_presumption_stop,
     _detect_money_stop,
@@ -395,57 +359,31 @@ def _constraints_for(lower: str) -> list[str]:
         constraints.append("contains an explicit deadline/order constraint")
     if " must " in lower or " debe " in lower:
         constraints.append("contains an explicit mandatory condition")
-    if (
-        "do not assume" in lower
-        or "don't assume" in lower
-        or "no asumas" in lower
-        or "no supongas" in lower
-    ):
+    if "do not assume" in lower or "don't assume" in lower or "no asumas" in lower or "no supongas" in lower:
         constraints.append("must not infer missing human intent or authorization")
-    if re.search(
-        rf"\b(?:do not|no)\s+(?:{_OUTWARD_VERBS}|{_IRREVERSIBLE_VERBS})\b",
-        lower,
-    ):
+    if re.search(rf"\b(?:do not|no)\s+(?:{_OUTWARD_VERBS}|{_IRREVERSIBLE_VERBS})\b", lower):
         constraints.append("explicitly forbids an outward or irreversible action")
     return constraints
 
 
 def _atomic_signal_constraints(atoms_lower: list[str]) -> list[str]:
     constraints: list[str] = []
-
     if len(atoms_lower) > 1:
         constraints.append(f"atomic intent decomposition applied: {len(atoms_lower)} clauses")
-
     if any(_has_pressure(atom) for atom in atoms_lower):
         constraints.append("urgency/pressure detected; pressure does not expand authority")
-
     if any(_has_high_impact_action(atom) for atom in atoms_lower):
-        constraints.append(
-            "high-impact action detected; downstream explicit authorization remains required"
-        )
-
-    if any(
-        _has_sensitive_target(atom) and _has_high_impact_action(atom)
-        for atom in atoms_lower
-    ):
-        constraints.append(
-            "sensitive target detected; downstream policy/authorization must fail closed"
-        )
-
+        constraints.append("high-impact action detected; downstream explicit authorization remains required")
+    if any(_has_sensitive_target(atom) and _has_high_impact_action(atom) for atom in atoms_lower):
+        constraints.append("sensitive target detected; downstream policy/authorization must fail closed")
     if any(_has_presumption(atom) for atom in atoms_lower):
-        constraints.append(
-            "historical/default-context language detected; current authorization cannot be inferred"
-        )
-
+        constraints.append("historical/default-context language detected; current authorization cannot be inferred")
     return constraints
 
 
 def analyze_intent_atoms(request: str) -> list[dict[str, object]]:
-    """Return auditable per-clause signals without granting authority."""
-
     atoms = decompose_intent(request)
     analyses: list[dict[str, object]] = []
-
     for index, atom in enumerate(atoms):
         lower = atom.casefold().rstrip(".!?")
         stop: _Stop | None = None
@@ -453,7 +391,6 @@ def analyze_intent_atoms(request: str) -> list[dict[str, object]]:
             stop = detector(lower)
             if stop is not None:
                 break
-
         analyses.append(
             {
                 "index": index,
@@ -461,21 +398,16 @@ def analyze_intent_atoms(request: str) -> list[dict[str, object]]:
                 "pressure_detected": _has_pressure(lower),
                 "presumption_detected": _has_presumption(lower),
                 "high_impact_action_detected": _has_high_impact_action(lower),
-                "sensitive_action_detected": (
-                    _has_sensitive_target(lower) and _has_high_impact_action(lower)
-                ),
+                "sensitive_action_detected": _has_sensitive_target(lower) and _has_high_impact_action(lower),
                 "material_stop": stop is not None,
                 "boundary_rule": stop.rule if stop else None,
                 "unknowns": list(stop.unknowns) if stop else [],
             }
         )
-
     return analyses
 
 
 def compile_intent(request: str) -> IntentIR:
-    """Compile a deterministic, atom-aware first-pass IntentIR."""
-
     text = _normalize(request)
     if not text:
         return IntentIR(
@@ -488,9 +420,6 @@ def compile_intent(request: str) -> IntentIR:
         )
 
     lower = text.casefold().rstrip(".!?")
-
-    # Brevity is not ambiguity. Keep this only at whole-request level so an
-    # innocent fragment created by atomic splitting cannot create a false stop.
     too_short = len(lower.split()) < 3 and not _has_concrete_target(lower)
     if lower in _GENERIC_REQUESTS or too_short:
         return IntentIR(
@@ -498,9 +427,7 @@ def compile_intent(request: str) -> IntentIR:
             normalized_goal=text,
             unknowns=["specific outcome", "target"],
             material_ambiguity=True,
-            clarification_question=(
-                "What specific outcome should I produce, and what should I act on?"
-            ),
+            clarification_question="What specific outcome should I produce, and what should I act on?",
             status="CLARIFY_BEFORE_EXECUTION",
         )
 
@@ -510,21 +437,16 @@ def compile_intent(request: str) -> IntentIR:
     constraints.extend(_atomic_signal_constraints(atoms_lower))
     constraints = list(dict.fromkeys(constraints))
 
-    # Explicit generic phrases embedded as an independent atom also stop.
     for index, atom_lower in enumerate(atoms_lower):
         if atom_lower in _GENERIC_REQUESTS:
-            atom_constraints = constraints + [
-                f"blocking atom {index + 1}/{len(atoms_lower)}: generic intent"
-            ]
+            atom_constraints = constraints + [f"blocking atom {index + 1}/{len(atoms_lower)}: generic intent"]
             return IntentIR(
                 original_request=text,
                 normalized_goal=text,
                 constraints=atom_constraints,
                 unknowns=["specific outcome", "target"],
                 material_ambiguity=True,
-                clarification_question=(
-                    "What specific outcome should I produce, and what should I act on?"
-                ),
+                clarification_question="What specific outcome should I produce, and what should I act on?",
                 status="CLARIFY_BEFORE_EXECUTION",
             )
 
@@ -533,9 +455,7 @@ def compile_intent(request: str) -> IntentIR:
             stop = detector(atom_lower)
             if stop is None:
                 continue
-            atom_constraints = constraints + [
-                f"blocking atom {index + 1}/{len(atoms_lower)}: {stop.rule}"
-            ]
+            atom_constraints = constraints + [f"blocking atom {index + 1}/{len(atoms_lower)}: {stop.rule}"]
             return IntentIR(
                 original_request=text,
                 normalized_goal=text,
